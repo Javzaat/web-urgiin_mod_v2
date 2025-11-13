@@ -107,6 +107,6 @@
 @media (max-width: 769px) {
   .pay-grid { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 426px) {
+@media (max-width: 440px) {
   .pay-grid { grid-template-columns: 1fr; }
 }

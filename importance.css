@@ -63,7 +63,7 @@
   }
 }
 
-@media (max-width: 426px) {
+@media (max-width: 440px) {
   .imp-grid {
     grid-template-columns: 1fr; 
   }
