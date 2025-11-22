@@ -33,7 +33,7 @@ const btnLogin = document.getElementById("btn-open-auth");
 const btnLogout = document.getElementById("btn-logout");
 
 
-// ================== MODAL ==================
+// ================== AUTH MODAL ==================
 const modal = document.getElementById("auth-modal");
 const back = document.getElementById("auth-backdrop");
 const closeBtn = document.getElementById("auth-close");
@@ -41,10 +41,22 @@ const closeBtn = document.getElementById("auth-close");
 function openModal() {
   modal.hidden = false;
   back.hidden = false;
+
+  // fade-in animation
+  setTimeout(() => {
+    modal.classList.add("show");
+    back.classList.add("show");
+  }, 10);
 }
+
 function closeModal() {
-  modal.hidden = true;
-  back.hidden = true;
+  modal.classList.remove("show");
+  back.classList.remove("show");
+
+  setTimeout(() => {
+    modal.hidden = true;
+    back.hidden = true;
+  }, 250);
 }
 
 btnLogin.addEventListener("click", openModal);
@@ -73,7 +85,35 @@ tabBtns.forEach((t) =>
 );
 
 
-// ================== SIGNUP ==================
+// ======================= SUCCESS TOAST =======================
+const toastBox = document.getElementById("toast-box");
+const toastText = document.getElementById("toast-text");
+const toastBackdrop = document.getElementById("toast-backdrop");
+
+function showToast(msg) {
+  toastText.textContent = msg;
+
+  toastBox.hidden = false;
+  toastBackdrop.hidden = false;
+
+  setTimeout(() => {
+    toastBox.classList.add("show");
+    toastBackdrop.classList.add("show");
+  }, 10);
+
+  setTimeout(() => {
+    toastBox.classList.remove("show");
+    toastBackdrop.classList.remove("show");
+
+    setTimeout(() => {
+      toastBox.hidden = true;
+      toastBackdrop.hidden = true;
+    }, 250);
+  }, 2000);
+}
+
+
+// ======================= SIGNUP =======================
 formSignup.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -82,19 +122,28 @@ formSignup.addEventListener("submit", async (e) => {
   const pass = document.getElementById("up-pass").value.trim();
 
   try {
+    // create account
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(cred.user, { displayName: name });
 
-    alert("Бүртгэл амжилттай!");
+    // force logout (NO auto-login after signup)
+    await signOut(auth);
+
     closeModal();
 
+    // switch to SIGN IN tab
+    document.querySelector('[data-tab="signin"]').click();
+
+    // toast message
+    showToast("Амжилттай бүртгэгдлээ! Одоо нэвтэрнэ үү.");
+
   } catch (err) {
-    alert(err.message);
+    showToast(err.message);
   }
 });
 
 
-// ================== SIGNIN ==================
+// ======================= SIGNIN =======================
 formSignin.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -103,32 +152,33 @@ formSignin.addEventListener("submit", async (e) => {
 
   try {
     await signInWithEmailAndPassword(auth, email, pass);
+
     closeModal();
+    showToast("Тавтай морилно уу!");
 
   } catch (err) {
-    alert(err.message);
+    showToast(err.message);
   }
 });
 
 
-// ======================================================================
-// =============== CUSTOM LOGOUT POPUP =================================
-// ======================================================================
+
+// ======================= CUSTOM LOGOUT POPUP =======================
 const logoutModal = document.getElementById("logout-modal");
 const logoutBackdrop = document.getElementById("logout-backdrop");
 const logoutCancel = document.getElementById("logout-cancel");
 const logoutConfirm = document.getElementById("logout-confirm");
 
-// Гарах popup нээх
 btnLogout.addEventListener("click", () => {
-  logoutModal.classList.add("show");
-  logoutBackdrop.classList.add("show");
-
   logoutModal.hidden = false;
   logoutBackdrop.hidden = false;
+
+  setTimeout(() => {
+    logoutModal.classList.add("show");
+    logoutBackdrop.classList.add("show");
+  }, 10);
 });
 
-// Popup хаах функц
 function closeLogoutPopup() {
   logoutModal.classList.remove("show");
   logoutBackdrop.classList.remove("show");
@@ -142,17 +192,16 @@ function closeLogoutPopup() {
 logoutCancel.addEventListener("click", closeLogoutPopup);
 logoutBackdrop.addEventListener("click", closeLogoutPopup);
 
-// Logout баталгаажуулах
 logoutConfirm.addEventListener("click", async () => {
   await signOut(auth);
   closeLogoutPopup();
+  showToast("Амжилттай гарлаа");
 });
 
 
-// ================== AUTH STATE ==================
+// ======================= AUTH STATE =======================
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // LOGGED IN
     const name = user.displayName || user.email.split("@")[0];
 
     welcomeText.textContent = `Тавтай морилно уу, ${name}`;
@@ -163,7 +212,6 @@ onAuthStateChanged(auth, (user) => {
     btnLogin.hidden = true;
 
   } else {
-    // LOGGED OUT
     welcomeText.textContent = "";
     welcomeText.hidden = true;
 

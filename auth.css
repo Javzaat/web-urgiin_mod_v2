@@ -80,3 +80,99 @@
   border: none;
   border-radius: 8px;
 }
+/* ================== SUCCESS TOAST ================== */
+
+.toast-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity .25s ease;
+  z-index: 900;
+}
+
+.toast-backdrop.show {
+  opacity: 1;
+}
+
+.toast-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  background: #fff;
+  padding: 26px 36px;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 0;
+  scale: 0.9;
+  transition: opacity .25s ease, scale .25s ease;
+  z-index: 1000;
+}
+
+.toast-box.show {
+  opacity: 1;
+  scale: 1;
+}
+/* ------- SIGNUP SUCCESS POPUP ------- */
+
+.success-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.success-backdrop.show {
+  opacity: 1;
+}
+
+.success-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(.85);
+  background: #fff;
+  padding: 22px 28px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+  z-index: 201;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+.success-modal.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.success-box p {
+  margin: 0 0 16px 0;
+  text-align: center;
+  color: var(--txt);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.success-btn {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 15px;
+}
+
+.success-btn:hover {
+  filter: brightness(0.95);
+}
