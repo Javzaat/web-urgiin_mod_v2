@@ -1,11 +1,17 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { 
+  initializeApp 
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
+// ================== FIREBASE CONFIG ==================
 const firebaseConfig = {
   apiKey: "AIzaSyC3Mu5W0Aol7DvtQ28mdtnD1qWt426ea9U",
   authDomain: "undes-27404.firebaseapp.com",
@@ -14,37 +20,49 @@ const firebaseConfig = {
   messagingSenderId: "392425028546",
   appId: "1:392425028546:web:6f24b527752361db68b45b",
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// ---- Modal open/close ----
+
+// ================== HEADER BUTTONS ==================
+const welcomeText = document.getElementById("welcome-text");
+const btnMyTree = document.getElementById("btn-my-tree");
+const btnLogin = document.getElementById("btn-open-auth");
+const btnLogout = document.getElementById("btn-logout");
+
+
+// ================== MODAL ==================
 const modal = document.getElementById("auth-modal");
 const back = document.getElementById("auth-backdrop");
-const btnOpen = document.getElementById("btn-open-auth");
-const btnClose = document.getElementById("auth-close");
+const closeBtn = document.getElementById("auth-close");
 
 function openModal() {
-  modal.removeAttribute("hidden");
-  back.removeAttribute("hidden");
+  modal.hidden = false;
+  back.hidden = false;
 }
-function closeModal() {
-  modal.setAttribute("hidden", "");
-  back.setAttribute("hidden", "");
-}
-btnOpen?.addEventListener("click", openModal);
-btnClose?.addEventListener("click", closeModal);
-back?.addEventListener("click", closeModal);
 
-// ---- Tabs ----
-const tabBtns = document.querySelectorAll(".tab-btn");
+function closeModal() {
+  modal.hidden = true;
+  back.hidden = true;
+}
+
+btnLogin.addEventListener("click", openModal);
+closeBtn.addEventListener("click", closeModal);
+back.addEventListener("click", closeModal);
+
+
+// ================== TABS ==================
 const formSignin = document.getElementById("form-signin");
 const formSignup = document.getElementById("form-signup");
+const tabBtns = document.querySelectorAll(".tab-btn");
 
-tabBtns.forEach((b) =>
-  b.addEventListener("click", () => {
-    tabBtns.forEach((t) => t.classList.remove("active"));
-    b.classList.add("active");
-    if (b.dataset.tab === "signin") {
+tabBtns.forEach((t) =>
+  t.addEventListener("click", () => {
+    tabBtns.forEach((x) => x.classList.remove("active"));
+    t.classList.add("active");
+
+    if (t.dataset.tab === "signin") {
       formSignin.classList.remove("hidden");
       formSignup.classList.add("hidden");
     } else {
@@ -54,36 +72,78 @@ tabBtns.forEach((b) =>
   })
 );
 
-// ---- Sign up ----
+
+// ================== SIGNUP ==================
 formSignup.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const name = document.getElementById("up-name").value.trim();
   const email = document.getElementById("up-email").value.trim();
-  const pass = document.getElementById("up-pass").value;
+  const pass = document.getElementById("up-pass").value.trim();
 
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(cred.user, { displayName: name });
-    alert(`Сайн байна уу, ${name}! Бүртгэл амжилттай.`);
-    formSignup.reset();
+
+    alert(`Бүртгэл амжилттай!`);
+
     closeModal();
+
   } catch (err) {
-    alert("Алдаа: " + err.message);
+    alert(err.message);
   }
 });
 
-// ---- Sign in ----
+
+// ================== SIGNIN ==================
 formSignin.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const email = document.getElementById("in-email").value.trim();
-  const pass = document.getElementById("in-pass").value;
+  const pass = document.getElementById("in-pass").value.trim();
 
   try {
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    alert(`Тавтай морил, ${cred.user.displayName || cred.user.email}!`);
-    formSignin.reset();
+    await signInWithEmailAndPassword(auth, email, pass);
+
+    alert("Тавтай морил!");
     closeModal();
+
   } catch (err) {
-    alert("Нэвтрэх алдаа: " + err.message);
+    alert(err.message);
+  }
+});
+
+
+// ================== LOGOUT ==================
+btnLogout.addEventListener("click", async () => {
+  if (confirm("Гарах уу?")) {
+    await signOut(auth);
+  }
+});
+
+
+// ================== AUTH STATE ==================
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // ▶ Нэвтэрсэн хүний нэр
+    const name = user.displayName || user.email.split("@")[0];
+
+    // UI үзэгдэх хэлбэр
+    welcomeText.textContent = `Тавтай морилно уу, ${name}`;
+    welcomeText.hidden = false;
+
+    btnMyTree.hidden = false;
+    btnLogout.hidden = true; // ← чи хүсвэл login-д дараалал өөр хийх боломжтой
+    btnLogin.hidden = true;
+
+    // Logout харагдана
+    btnLogout.hidden = false;
+
+  } else {
+    // ▶ Нэвтрээгүй UI
+    welcomeText.hidden = true;
+    btnMyTree.hidden = true;
+    btnLogout.hidden = true;
+    btnLogin.hidden = false;
   }
 });

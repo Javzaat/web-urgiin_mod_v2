@@ -97,7 +97,31 @@ body {
 
 .buttons {
   display: flex;
-  gap: 12px;
+  align-items: center;   /* бүх зүйл төвд */
+  gap: 10px;
+}
+
+#welcome-text {
+  display: flex;
+  align-items: center;   /* босоо төв */
+  height: 100%;
+  font-size: 15px;
+  color: var(--txt);
+  margin-right: 6px;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--txt);
+}
+
+.btn-logout:hover {
+  background: #f3ede5;
 }
 
 .buttons button {
