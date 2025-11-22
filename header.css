@@ -312,3 +312,88 @@ html {
 section {
   scroll-margin-top: 90px;
 }
+/* ====== LOGOUT MODAL BACKDROP ====== */
+.logout-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.logout-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ====== LOGOUT MODAL BOX ====== */
+.logout-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 210;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-20px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.logout-modal.show {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(0);
+}
+
+.logout-box {
+  background: #fff;
+  padding: 24px 28px;
+  border-radius: 10px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15);
+  animation: pop 0.25s ease;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.logout-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logout-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-btn.cancel {
+  background: #e5ddd3;
+  color: #5c4033;
+}
+
+.logout-btn.confirm {
+  background: #6b5b4b;
+  color: white;
+}
+
+.logout-btn.confirm:hover {
+  filter: brightness(1.1);
+}

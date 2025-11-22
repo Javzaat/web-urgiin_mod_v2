@@ -11,6 +11,7 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
+
 // ================== FIREBASE CONFIG ==================
 const firebaseConfig = {
   apiKey: "AIzaSyC3Mu5W0Aol7DvtQ28mdtnD1qWt426ea9U",
@@ -41,7 +42,6 @@ function openModal() {
   modal.hidden = false;
   back.hidden = false;
 }
-
 function closeModal() {
   modal.hidden = true;
   back.hidden = true;
@@ -111,13 +111,41 @@ formSignin.addEventListener("submit", async (e) => {
 });
 
 
-// ================== LOGOUT ==================
-btnLogout.addEventListener("click", async () => {
-  if (confirm("Гарах уу?")) {
-    welcomeText.textContent = "";
-    welcomeText.hidden = true;
-    await signOut(auth);
-  }
+// ======================================================================
+// =============== CUSTOM LOGOUT POPUP =================================
+// ======================================================================
+const logoutModal = document.getElementById("logout-modal");
+const logoutBackdrop = document.getElementById("logout-backdrop");
+const logoutCancel = document.getElementById("logout-cancel");
+const logoutConfirm = document.getElementById("logout-confirm");
+
+// Гарах popup нээх
+btnLogout.addEventListener("click", () => {
+  logoutModal.classList.add("show");
+  logoutBackdrop.classList.add("show");
+
+  logoutModal.hidden = false;
+  logoutBackdrop.hidden = false;
+});
+
+// Popup хаах функц
+function closeLogoutPopup() {
+  logoutModal.classList.remove("show");
+  logoutBackdrop.classList.remove("show");
+
+  setTimeout(() => {
+    logoutModal.hidden = true;
+    logoutBackdrop.hidden = true;
+  }, 250);
+}
+
+logoutCancel.addEventListener("click", closeLogoutPopup);
+logoutBackdrop.addEventListener("click", closeLogoutPopup);
+
+// Logout баталгаажуулах
+logoutConfirm.addEventListener("click", async () => {
+  await signOut(auth);
+  closeLogoutPopup();
 });
 
 

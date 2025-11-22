@@ -383,6 +383,16 @@
     <script src="header.js"></script>
     <script type="module" src="auth.js"></script>
     
+    <div class="logout-backdrop" id="logout-backdrop" hidden></div>
+    <div class="logout-modal" id="logout-modal" hidden>
+      <div class="logout-box">
+        <p>Та системээс гарах уу?</p>
 
+        <div class="logout-actions">
+          <button id="logout-cancel" class="logout-btn cancel">Буцах</button>
+          <button id="logout-confirm" class="logout-btn confirm">Гарах</button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
