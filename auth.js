@@ -85,8 +85,7 @@ formSignup.addEventListener("submit", async (e) => {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(cred.user, { displayName: name });
 
-    alert(`Бүртгэл амжилттай!`);
-
+    alert("Бүртгэл амжилттай!");
     closeModal();
 
   } catch (err) {
@@ -104,8 +103,6 @@ formSignin.addEventListener("submit", async (e) => {
 
   try {
     await signInWithEmailAndPassword(auth, email, pass);
-
-    alert("Тавтай морил!");
     closeModal();
 
   } catch (err) {
@@ -117,6 +114,8 @@ formSignin.addEventListener("submit", async (e) => {
 // ================== LOGOUT ==================
 btnLogout.addEventListener("click", async () => {
   if (confirm("Гарах уу?")) {
+    welcomeText.textContent = "";
+    welcomeText.hidden = true;
     await signOut(auth);
   }
 });
@@ -125,23 +124,21 @@ btnLogout.addEventListener("click", async () => {
 // ================== AUTH STATE ==================
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // ▶ Нэвтэрсэн хүний нэр
+    // LOGGED IN
     const name = user.displayName || user.email.split("@")[0];
 
-    // UI үзэгдэх хэлбэр
     welcomeText.textContent = `Тавтай морилно уу, ${name}`;
     welcomeText.hidden = false;
 
     btnMyTree.hidden = false;
-    btnLogout.hidden = true; // ← чи хүсвэл login-д дараалал өөр хийх боломжтой
+    btnLogout.hidden = false;
     btnLogin.hidden = true;
 
-    // Logout харагдана
-    btnLogout.hidden = false;
-
   } else {
-    // ▶ Нэвтрээгүй UI
+    // LOGGED OUT
+    welcomeText.textContent = "";
     welcomeText.hidden = true;
+
     btnMyTree.hidden = true;
     btnLogout.hidden = true;
     btnLogin.hidden = false;

@@ -1,0 +1,170 @@
+/* ----------------- COMMON ----------------- */
+
+:root {
+  --brand: #5c4033;
+  --bg-paper: #f4e6cf;
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --border-soft: #e2d1bc;
+  --text-main: #3f2b1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #f2e4cd url("sec.jpg") center/cover fixed no-repeat;
+}
+
+/* ----------------- HEADER ----------------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 30px;
+  background: rgba(253, 245, 237, 0.96);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #e4d5c4;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.logo img {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+.logo span {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.btn-my-tree {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 8px;
+  border: none;
+  padding: 7px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.btn-my-tree:hover {
+  filter: brightness(0.95);
+}
+
+.welcome-text {
+  font-size: 15px;
+  color: var(--text-main);
+}
+
+/* "Гарах" – жирийн үг маягийн товч */
+.btn-logout-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 15px;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.btn-logout-link:hover {
+  text-decoration: underline;
+}
+
+/* ----------------- TREE LAYOUT ----------------- */
+
+.tree-main {
+  min-height: calc(100vh - 70px);
+  padding: 40px 20px 60px 20px;
+}
+
+.tree-title {
+  text-align: center;
+  margin: 0 0 40px 0;
+  font-size: 24px;
+  color: var(--text-main);
+}
+
+.tree-wrapper {
+  max-width: 700px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 160px);
+  justify-content: center;
+  gap: 40px;
+}
+
+/* Картаа */
+.tree-card {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  padding: 16px 12px 18px 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.tree-card .icon {
+  font-size: 40px;
+  margin-bottom: 4px;
+}
+
+.tree-card .label {
+  font-size: 16px;
+  color: var(--text-main);
+}
+
+/* "+" товч */
+.add-btn {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+/* Доод "би" карт бага зэрэг онцгой харагдъя */
+.tree-card.self {
+  transform: translateY(20px);
+}
+
+/* ----------------- RESPONSIVE ----------------- */
+
+@media (max-width: 720px) {
+  .tree-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .tree-card.self {
+    transform: none;
+  }
+
+  .site-header {
+    padding-inline: 16px;
+  }
+}

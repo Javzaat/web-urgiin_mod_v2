@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="mn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Миний мод – Undes</title>
+
+    <!-- Зөвхөн энэ хуудсанд хэрэгтэй CSS -->
+    <link rel="stylesheet" href="family-tree.css" />
+  </head>
+
+  <body>
+    <!-- ========== HEADER ========== -->
+    <header class="site-header">
+      <!-- ЛОГО – дээр нь дарахаар index.html руу буцна -->
+      <div class="logo" onclick="location.href='index.html'">
+        <img src="logo.png" alt="Undes logo" />
+        <span>Undes</span>
+      </div>
+
+      <div class="header-right">
+        <!-- Миний мод товч (жижиг бор button) -->
+        <button
+          type="button"
+          class="btn-my-tree"
+          onclick="location.href='family-tree.html'"
+        >
+          Миний мод
+        </button>
+
+        <!-- Сайн байна уу, Javzaa -->
+        <span id="welcome-text" class="welcome-text"></span>
+
+        <!-- Гарах – жирийн үг маягийн товч -->
+        <button type="button" id="logout-btn" class="btn-logout-link">
+          Гарах
+        </button>
+      </div>
+    </header>
+
+    <!-- ========== FAMILY TREE ========== -->
+    <main class="tree-main">
+      <!-- Дээр гарч ирэх нэр -->
+      <h2 id="tree-title" class="tree-title"></h2>
+
+      <div class="tree-wrapper">
+        <!-- Эцэг -->
+        <div class="tree-card parent">
+          <button class="add-btn" type="button">+</button>
+          <div class="icon">👤</div>
+          <div class="label">Эцэг</div>
+        </div>
+
+        <!-- Эх -->
+        <div class="tree-card parent">
+          <button class="add-btn" type="button">+</button>
+          <div class="icon">👤</div>
+          <div class="label">Эх</div>
+        </div>
+
+        <!-- Би / Нэвтэрсэн хэрэглэгч -->
+        <div class="tree-card self">
+          <button class="add-btn" type="button">+</button>
+          <div class="icon">👤</div>
+          <div class="label" id="self-name">Би</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========== FIREBASE AUTH SCRIPT ========== -->
+    <script type="module">
+      import {
+        initializeApp
+      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signOut
+      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+
+      // Чиний өмнө хэрэглэж байсан config-ийг шууд ашиглая
+      const firebaseConfig = {
+        apiKey: "AIzaSyC3Mu5W0Aol7DvtQ28mdtnD1qWt426ea9U",
+        authDomain: "undes-27404.firebaseapp.com",
+        projectId: "undes-27404",
+        storageBucket: "undes-27404.firebasestorage.app",
+        messagingSenderId: "392425028546",
+        appId: "1:392425028546:web:6f24b527752361db68b45b",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      const welcomeTextEl = document.getElementById("welcome-text");
+      const logoutBtn = document.getElementById("logout-btn");
+      const treeTitleEl = document.getElementById("tree-title");
+      const selfNameEl = document.getElementById("self-name");
+
+      // Хэрэглэгчийн төлөвийг сонсох
+      onAuthStateChanged(auth, (user) => {
+        if (!user) {
+          // Нэвтрээгүй бол буцаад гол хуудас руу
+          window.location.href = "index.html";
+          return;
+        }
+
+        const name = user.displayName || user.email.split("@")[0];
+
+        // Header дээр
+        welcomeTextEl.textContent = `Сайн байна уу, ${name}`;
+
+        // Модны гарчиг
+        treeTitleEl.textContent = name;
+
+        // Доод "Би" дээрх нэр
+        selfNameEl.textContent = name;
+      });
+
+      // Гарах
+      logoutBtn.addEventListener("click", () => {
+        if (confirm("Гарах уу?")) {
+          signOut(auth).then(() => {
+            window.location.href = "index.html";
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

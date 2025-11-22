@@ -110,18 +110,21 @@ body {
   margin-right: 6px;
 }
 
+/* --- Гарах товчыг жирийн текст маягтай болгох override --- */
 .btn-logout {
-  background: transparent;
-  border: 1px solid var(--border);
-  padding: 6px 12px;
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  padding: 6px 12px !important;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  color: var(--txt);
+  font-size: 14px !important;
+  color: var(--txt) !important;
+  font-weight: normal !important;   /* BOLD арилгана */
 }
 
+/* Hover үед */
 .btn-logout:hover {
-  background: #f3ede5;
+  background: #f3ede5 !important;
 }
 
 .buttons button {
