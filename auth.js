@@ -42,7 +42,6 @@ function openModal() {
   modal.hidden = false;
   back.hidden = false;
 
-  // fade-in animation
   setTimeout(() => {
     modal.classList.add("show");
     back.classList.add("show");
@@ -59,9 +58,9 @@ function closeModal() {
   }, 250);
 }
 
-btnLogin.addEventListener("click", openModal);
-closeBtn.addEventListener("click", closeModal);
-back.addEventListener("click", closeModal);
+btnLogin?.addEventListener("click", openModal);
+closeBtn?.addEventListener("click", closeModal);
+back?.addEventListener("click", closeModal);
 
 
 // ================== TABS ==================
@@ -122,19 +121,17 @@ formSignup.addEventListener("submit", async (e) => {
   const pass = document.getElementById("up-pass").value.trim();
 
   try {
-    // create account
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(cred.user, { displayName: name });
 
-    // force logout (NO auto-login after signup)
+    // logout after signup (no auto-login)
     await signOut(auth);
 
     closeModal();
 
-    // switch to SIGN IN tab
+    // switch to SIGN-IN tab
     document.querySelector('[data-tab="signin"]').click();
 
-    // toast message
     showToast("Амжилттай бүртгэгдлээ! Одоо нэвтэрнэ үү.");
 
   } catch (err) {
@@ -169,7 +166,7 @@ const logoutBackdrop = document.getElementById("logout-backdrop");
 const logoutCancel = document.getElementById("logout-cancel");
 const logoutConfirm = document.getElementById("logout-confirm");
 
-btnLogout.addEventListener("click", () => {
+btnLogout?.addEventListener("click", () => {
   logoutModal.hidden = false;
   logoutBackdrop.hidden = false;
 
@@ -189,10 +186,10 @@ function closeLogoutPopup() {
   }, 250);
 }
 
-logoutCancel.addEventListener("click", closeLogoutPopup);
-logoutBackdrop.addEventListener("click", closeLogoutPopup);
+logoutCancel?.addEventListener("click", closeLogoutPopup);
+logoutBackdrop?.addEventListener("click", closeLogoutPopup);
 
-logoutConfirm.addEventListener("click", async () => {
+logoutConfirm?.addEventListener("click", async () => {
   await signOut(auth);
   closeLogoutPopup();
   showToast("Амжилттай гарлаа");
@@ -219,4 +216,32 @@ onAuthStateChanged(auth, (user) => {
     btnLogout.hidden = true;
     btnLogin.hidden = false;
   }
+});
+
+
+// ======================= FAMILY TREE ROUTING =======================
+const btnCreateTree = document.querySelector(".go-tree"); // main CTA buttons
+const btnPaymentStart = document.getElementById("btn-payment-start");
+
+function requireLogin() {
+  openModal();
+
+  // switch to sign-in tab
+  formSignin.classList.remove("hidden");
+  formSignup.classList.add("hidden");
+
+  tabBtns.forEach((x) => x.classList.remove("active"));
+  tabBtns[0].classList.add("active");
+}
+
+function goToFamilyTree() {
+  window.location.href = "family-tree.html";
+}
+
+document.querySelectorAll(".go-tree").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const user = auth.currentUser;
+    if (!user) return requireLogin();
+    goToFamilyTree();
+  });
 });

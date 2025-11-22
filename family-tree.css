@@ -1,170 +1,71 @@
-/* ----------------- COMMON ----------------- */
-
-:root {
-  --brand: #5c4033;
-  --bg-paper: #f4e6cf;
-  --card-bg: rgba(255, 255, 255, 0.9);
-  --border-soft: #e2d1bc;
-  --text-main: #3f2b1c;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 body {
-  margin: 0;
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: #f2e4cd url("sec.jpg") center/cover fixed no-repeat;
+    background: #f4eedf;
+    font-family: Arial;
 }
 
-/* ----------------- HEADER ----------------- */
-
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 30px;
-  background: rgba(253, 245, 237, 0.96);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid #e4d5c4;
+.header {
+    height: 60px;
+    padding: 10px 30px;
+    background: #faf5e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+.person-node {
+    width: 150px;
+    padding: 10px;
+    background: #fffdf5;
+    border: 2px solid #d3c6aa;
+    border-radius: 12px;
+    text-align: center;
+    position: absolute;
+    left: 50%;
+    top: 180px;
+    transform: translateX(-50%);
 }
 
-.logo img {
-  width: 40px;
-  height: 40px;
-  display: block;
+.node-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    margin-bottom: 5px;
 }
 
-.logo span {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text-main);
+.node-add-btn {
+    cursor: pointer;
+    font-size: 24px;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+.node-photo img {
+    width: 70px;
+    height: 70px;
 }
 
-.btn-my-tree {
-  background: var(--brand);
-  color: #fff;
-  border-radius: 8px;
-  border: none;
-  padding: 7px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: filter 0.2s ease;
+.menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #aaa;
+    padding: 10px;
+    border-radius: 10px;
 }
 
-.btn-my-tree:hover {
-  filter: brightness(0.95);
+.form-modal {
+    width: 300px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    transform: translate(-50%, -50%);
 }
 
-.welcome-text {
-  font-size: 15px;
-  color: var(--text-main);
-}
-
-/* "Гарах" – жирийн үг маягийн товч */
-.btn-logout-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 15px;
-  color: var(--brand);
-  cursor: pointer;
-}
-
-.btn-logout-link:hover {
-  text-decoration: underline;
-}
-
-/* ----------------- TREE LAYOUT ----------------- */
-
-.tree-main {
-  min-height: calc(100vh - 70px);
-  padding: 40px 20px 60px 20px;
-}
-
-.tree-title {
-  text-align: center;
-  margin: 0 0 40px 0;
-  font-size: 24px;
-  color: var(--text-main);
-}
-
-.tree-wrapper {
-  max-width: 700px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(3, 160px);
-  justify-content: center;
-  gap: 40px;
-}
-
-/* Картаа */
-.tree-card {
-  position: relative;
-  background: var(--card-bg);
-  border-radius: 14px;
-  border: 1px solid var(--border-soft);
-  padding: 16px 12px 18px 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  text-align: center;
-}
-
-.tree-card .icon {
-  font-size: 40px;
-  margin-bottom: 4px;
-}
-
-.tree-card .label {
-  font-size: 16px;
-  color: var(--text-main);
-}
-
-/* "+" товч */
-.add-btn {
-  position: absolute;
-  left: 8px;
-  top: 6px;
-  border: none;
-  background: transparent;
-  font-size: 22px;
-  color: var(--brand);
-  cursor: pointer;
-}
-
-/* Доод "би" карт бага зэрэг онцгой харагдъя */
-.tree-card.self {
-  transform: translateY(20px);
-}
-
-/* ----------------- RESPONSIVE ----------------- */
-
-@media (max-width: 720px) {
-  .tree-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .tree-card.self {
-    transform: none;
-  }
-
-  .site-header {
-    padding-inline: 16px;
-  }
+.backdrop {
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:#0005;
 }

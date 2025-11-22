@@ -46,7 +46,7 @@
 
       <div class="buttons">
         <span id="welcome-text" hidden></span>
-        <button id="btn-my-tree" hidden>Миний мод</button>
+        <a id="btn-my-tree" href="family-tree.html" hidden><button>Миний мод</button></a>
         <button id="btn-open-auth">Нэвтрэх</button>
         <button id="btn-logout" class="btn-logout" hidden>Гарах</button>
       </div>
@@ -63,7 +63,7 @@
           мэдээллийг бүртгүүлээрэй.
         </p>
 
-        <button class="cta">Ургийн мод үүсгэх</button>
+        <button class="cta go-tree">Ургийн мод үүсгэх</button>
       </div>
 
       <div class="media" aria-label="Гэр бүлийн зураг">
@@ -176,7 +176,7 @@
           <img src="instr4.png" alt="4" class="instr-icon" />
           <h3>Өөрийн модоо эхлүүлэх</h3>
           <p>Өөрийн</p>
-          <button class="cta">Ургийн мод үүсгэх</button>
+          <button class="cta go-tree">Ургийн мод үүсгэх</button>
         </article>
       </div>
     </section>
@@ -202,7 +202,7 @@
             <li>Товч мэдээлэл бүртгэх</li>
           </ul>
 
-          <button class="cta">Эхлэх</button>
+          <button class="cta go-tree">Эхлэх</button>
         </article>
 
 
@@ -399,5 +399,15 @@
     <div id="toast-box" class="toast-box" hidden>
       <p id="toast-text">Амжилттай!</p>
     </div>
+    <!-- ================= SIGNUP SUCCESS POPUP ================= -->
+    <div class="success-backdrop" id="success-backdrop" hidden></div>
+
+    <div class="success-modal" id="success-modal" hidden>
+      <div class="success-box">
+        <p>Амжилттай бүртгэгдлээ!<br>Одоо нэвтэрнэ үү.</p>
+        <button id="success-ok" class="success-btn">OK</button>
+      </div>
+    </div>
+
   </body>
 </html>
