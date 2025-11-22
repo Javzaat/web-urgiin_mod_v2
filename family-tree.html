@@ -1,130 +1,77 @@
 <!DOCTYPE html>
 <html lang="mn">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Миний мод – Undes</title>
+<head>
+    <meta charset="UTF-8">
+    <title>Undes - Ургийн мод</title>
+    <link rel="stylesheet" href="family-tree.css">
+</head>
+<body>
 
-    <!-- Зөвхөн энэ хуудсанд хэрэгтэй CSS -->
-    <link rel="stylesheet" href="family-tree.css" />
-  </head>
+<header class="header">
+    <div class="left">
+        <img src="logo.svg" class="logo">
+        <span class="brand">Undes</span>
+    </div>
 
-  <body>
-    <!-- ========== HEADER ========== -->
-    <header class="site-header">
-      <!-- ЛОГО – дээр нь дарахаар index.html руу буцна -->
-      <div class="logo" onclick="location.href='index.html'">
-        <img src="logo.png" alt="Undes logo" />
-        <span>Undes</span>
-      </div>
+    <div class="right">
+        <button onclick="window.location.href='index.html'" class="back-btn">Буцах</button>
+    </div>
+</header>
 
-      <div class="header-right">
-        <!-- Миний мод товч (жижиг бор button) -->
-        <button
-          type="button"
-          class="btn-my-tree"
-          onclick="location.href='family-tree.html'"
-        >
-          Миний мод
-        </button>
+<h2 class="hello-text">Сайн байна уу, <span id="userName">...</span></h2>
 
-        <!-- Сайн байна уу, Javzaa -->
-        <span id="welcome-text" class="welcome-text"></span>
-
-        <!-- Гарах – жирийн үг маягийн товч -->
-        <button type="button" id="logout-btn" class="btn-logout-link">
-          Гарах
-        </button>
-      </div>
-    </header>
-
-    <!-- ========== FAMILY TREE ========== -->
-    <main class="tree-main">
-      <!-- Дээр гарч ирэх нэр -->
-      <h2 id="tree-title" class="tree-title"></h2>
-
-      <div class="tree-wrapper">
-        <!-- Эцэг -->
-        <div class="tree-card parent">
-          <button class="add-btn" type="button">+</button>
-          <div class="icon">👤</div>
-          <div class="label">Эцэг</div>
+<!-- ************* TREE AREA ************** -->
+<div id="tree-area">
+    <!-- One starting node -->
+    <div class="person-node" id="node-me">
+        <div class="node-header">
+            <span class="node-add-btn" onclick="openMenu('me')">+</span>
+            <span class="node-role">Би</span>
         </div>
 
-        <!-- Эх -->
-        <div class="tree-card parent">
-          <button class="add-btn" type="button">+</button>
-          <div class="icon">👤</div>
-          <div class="label">Эх</div>
+        <div class="node-photo">
+            <img src="default-user.png">
         </div>
 
-        <!-- Би / Нэвтэрсэн хэрэглэгч -->
-        <div class="tree-card self">
-          <button class="add-btn" type="button">+</button>
-          <div class="icon">👤</div>
-          <div class="label" id="self-name">Би</div>
-        </div>
-      </div>
-    </main>
+        <div class="node-name" id="name-me">Нэргүй</div>
+    </div>
+</div>
 
-    <!-- ========== FIREBASE AUTH SCRIPT ========== -->
-    <script type="module">
-      import {
-        initializeApp
-      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
 
-      import {
-        getAuth,
-        onAuthStateChanged,
-        signOut
-      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+<!-- ************* MENU (эцэг/эх/хүүхэд/засах/устгах) ************** -->
+<div id="menu" class="menu" hidden>
+    <button onclick="openForm('father')">Эцэг нэмэх</button>
+    <button onclick="openForm('mother')">Эх нэмэх</button>
+    <button onclick="openForm('child')">Хүүхэд нэмэх</button>
+    <button onclick="openForm('edit')">Засах</button>
+    <button onclick="deleteNode()">Устгах</button>
+</div>
 
-      // Чиний өмнө хэрэглэж байсан config-ийг шууд ашиглая
-      const firebaseConfig = {
-        apiKey: "AIzaSyC3Mu5W0Aol7DvtQ28mdtnD1qWt426ea9U",
-        authDomain: "undes-27404.firebaseapp.com",
-        projectId: "undes-27404",
-        storageBucket: "undes-27404.firebasestorage.app",
-        messagingSenderId: "392425028546",
-        appId: "1:392425028546:web:6f24b527752361db68b45b",
-      };
 
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
+<!-- ************* FORM MODAL ************** -->
+<div id="form-backdrop" class="backdrop" hidden></div>
 
-      const welcomeTextEl = document.getElementById("welcome-text");
-      const logoutBtn = document.getElementById("logout-btn");
-      const treeTitleEl = document.getElementById("tree-title");
-      const selfNameEl = document.getElementById("self-name");
+<div id="form-modal" class="form-modal" hidden>
+    <h3 id="form-title">Мэдээлэл оруулах</h3>
 
-      // Хэрэглэгчийн төлөвийг сонсох
-      onAuthStateChanged(auth, (user) => {
-        if (!user) {
-          // Нэвтрээгүй бол буцаад гол хуудас руу
-          window.location.href = "index.html";
-          return;
-        }
+    <label>Нэр</label>
+    <input id="form-name" type="text">
 
-        const name = user.displayName || user.email.split("@")[0];
+    <label>Хүйс</label>
+    <select id="form-gender">
+        <option value="male">Эр</option>
+        <option value="female">Эм</option>
+    </select>
 
-        // Header дээр
-        welcomeTextEl.textContent = `Сайн байна уу, ${name}`;
+    <label>Төрсөн огноо</label>
+    <input id="form-birth" type="date">
 
-        // Модны гарчиг
-        treeTitleEl.textContent = name;
+    <label>Зураг</label>
+    <input id="form-photo" type="file" accept="image/*">
 
-        // Доод "Би" дээрх нэр
-        selfNameEl.textContent = name;
-      });
+    <button id="saveBtn">Хадгалах</button>
+</div>
 
-      // Гарах
-      logoutBtn.addEventListener("click", () => {
-        if (confirm("Гарах уу?")) {
-          signOut(auth).then(() => {
-            window.location.href = "index.html";
-          });
-        }
-      });
-    </script>
-  </body>
+<script src="family-tree.js"></script>
+</body>
 </html>
