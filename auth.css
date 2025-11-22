@@ -1,11 +1,11 @@
-/* Modal frame */
 .auth-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(2px);
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(3px);
   z-index: 99;
 }
+
 .auth-modal {
   position: fixed;
   left: 50%;
@@ -13,99 +13,166 @@
   transform: translate(-50%, -50%);
   width: min(480px, 92vw);
   background: #fff;
-  border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.12);
-  padding: 18px clamp(18px, 3vw, 28px);
+  padding: 24px;
   z-index: 100;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
 }
+
 .auth-close {
   position: absolute;
-  right: 8px;
   top: 6px;
-  border: 0;
-  background: transparent;
+  right: 10px;
   font-size: 26px;
+  background: none;
+  border: none;
   cursor: pointer;
-  color: var(--txt);
 }
+
 .auth-tabs {
   display: flex;
-  gap: 6px;
-  margin: 6px 0 14px 0;
+  gap: 8px;
+  margin-bottom: 12px;
 }
+
 .tab-btn {
-  border: 1px solid var(--border);
+  border: 1px solid #ddd;
+  padding: 6px 14px;
+  border-radius: 8px;
   background: #fff;
-  border-radius: 10px;
-  padding: 8px 12px;
   cursor: pointer;
 }
+
 .tab-btn.active {
-  background: #fff7ef;
-  border-color: #e0cfba;
-  color: var(--brand);
+  background: #fff8ee;
+  border-color: #e9cbaa;
 }
 
 .auth-form {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
+
 .auth-form.hidden {
   display: none;
 }
-.auth-form label {
-  font-size: 13px;
-  color: var(--txt);
-}
+
 .auth-form input {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-.auth-form input:focus {
-  outline: 3px solid #cbb095;
-  outline-offset: 2px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 8px;
 }
 
 .cta.full {
   width: 100%;
-  background: var(--txt);
-  color: #fff;
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
-}
-.cta.full:hover {
-  filter: brightness(0.95);
-  background: var(--brand);
-}
-
-.or {
-  text-align: center;
-  color: var(--txt);
-  font-size: 12px;
-  margin: 4px 0;
+  background: #6b5b4b;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
 }
 
 .oauth.fb {
-  width: 100%;
-  border: 1px solid #e1e1e1;
   background: #1877f2;
-  color: #fff;
-  border-radius: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
+  color: white;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
 }
-.oauth.fb:hover {
-  filter: brightness(0.96);
+/* ================== SUCCESS TOAST ================== */
+
+.toast-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity .25s ease;
+  z-index: 900;
 }
 
-#auth-msg {
-  min-height: 18px;
-  color: #8a5a3d;
-  font-size: 13px;
-  margin-top: 4px;
+.toast-backdrop.show {
+  opacity: 1;
+}
+
+.toast-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  background: #fff;
+  padding: 26px 36px;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  text-align: center;
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 0;
+  scale: 0.9;
+  transition: opacity .25s ease, scale .25s ease;
+  z-index: 1000;
+}
+
+.toast-box.show {
+  opacity: 1;
+  scale: 1;
+}
+/* ------- SIGNUP SUCCESS POPUP ------- */
+
+.success-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.success-backdrop.show {
+  opacity: 1;
+}
+
+.success-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(.85);
+  background: #fff;
+  padding: 22px 28px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+  z-index: 201;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+.success-modal.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.success-box p {
+  margin: 0 0 16px 0;
+  text-align: center;
+  color: var(--txt);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.success-btn {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 15px;
+}
+
+.success-btn:hover {
+  filter: brightness(0.95);
 }
