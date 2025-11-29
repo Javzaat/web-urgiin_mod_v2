@@ -308,7 +308,8 @@ function addSpouse(person) {
     id: nextId++,
     name: "Хань",
     level: person.level,
-    col: person.col + 1,
+    // багахан 0.01 зөрүү өгснөөр layout хийхдээ яг баруун талд нь байрлана
+    col: person.col + 0.01,
   });
 
   spouse.spouseId = person.id;
@@ -319,6 +320,7 @@ function addSpouse(person) {
   layoutTree();
   renderTree();
 }
+
 
 // Хүүхэд нэмэх – доор олон card нэмэгдэж болно (нэг нэгээр)
 function addChild(parent) {
@@ -354,7 +356,6 @@ function addChild(parent) {
   renderTree();
 }
 
-// ================== LINE DRAWING ==================
 function drawLines() {
   if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -362,56 +363,127 @@ function drawLines() {
   ctx.strokeStyle = "#8a6a4a";
   ctx.lineWidth = 2;
 
+  // 1) ГАНЦ эцэг/эхтэй хүүхдүүдийн шугам
   members.forEach((child) => {
-    if (!child.parents || child.parents.length === 0) return;
+    if (!child.parents || child.parents.length !== 1) return;
 
-    const childPos = posMap.get(child.id);
-    if (!childPos) return;
+    const pId = child.parents[0];
+    const pPos = posMap.get(pId);
+    const cPos = posMap.get(child.id);
+    if (!pPos || !cPos) return;
 
-    if (child.parents.length === 1) {
-      // ганц эцэг/эх
-      const pPos = posMap.get(child.parents[0]);
-      if (!pPos) return;
+    const yParentBottom = pPos.y + CARD_H / 2;
+    const yChildTop = cPos.y - CARD_H / 2;
 
-      ctx.beginPath();
-      ctx.moveTo(pPos.x, pPos.y + CARD_H / 2);
-      ctx.lineTo(childPos.x, childPos.y - CARD_H / 2);
-      ctx.stroke();
-    } else if (child.parents.length >= 2) {
-      // хоёр эцэг эх – T хэлбэрийн шугам
-      let p1Pos = posMap.get(child.parents[0]);
-      let p2Pos = posMap.get(child.parents[1]);
-      if (!p1Pos || !p2Pos) return;
+    ctx.beginPath();
+    ctx.moveTo(pPos.x, yParentBottom);
+    ctx.lineTo(cPos.x, yChildTop);
+    ctx.stroke();
+  });
 
-      // зүүн/баруун гэж эрэмбэлнэ
-      if (p1Pos.x > p2Pos.x) {
-        const tmp = p1Pos;
-        p1Pos = p2Pos;
-        p2Pos = tmp;
-      }
+  // 2) ХОЁР эцэг эхтэй хүүхдүүдийг parent-pair эсвэл хосоор нь групплэх
+  const pairMap = new Map(); // "p1-p2" -> { p1, p2, children: [id...] }
 
-      const jointY = (p1Pos.y + childPos.y) / 2;
-      const midX = (p1Pos.x + p2Pos.x) / 2;
+  members.forEach((child) => {
+    if (!child.parents || child.parents.length < 2) return;
 
-      ctx.beginPath();
+    const [a, b] = child.parents;
+    const p1 = Math.min(a, b);
+    const p2 = Math.max(a, b);
+    const key = p1 + "-" + p2;
 
-      // parent1 доош
-      ctx.moveTo(p1Pos.x, p1Pos.y + CARD_H / 2);
-      ctx.lineTo(p1Pos.x, jointY);
-
-      // parent2 доош
-      ctx.moveTo(p2Pos.x, p2Pos.y + CARD_H / 2);
-      ctx.lineTo(p2Pos.x, jointY);
-
-      // хооронд нь хөндлөн
-      ctx.moveTo(p1Pos.x, jointY);
-      ctx.lineTo(p2Pos.x, jointY);
-
-      // голоос хүүхэд рүү
-      ctx.moveTo(midX, jointY);
-      ctx.lineTo(childPos.x, childPos.y - CARD_H / 2);
-
-      ctx.stroke();
+    if (!pairMap.has(key)) {
+      pairMap.set(key, { p1, p2, children: [] });
     }
+    pairMap.get(key).children.push(child.id);
+  });
+
+  // Тухайн эцэг эхийн хос бүр дээр 1 удаа шугам зурах
+  pairMap.forEach((group) => {
+    const p1 = findMember(group.p1);
+    const p2 = findMember(group.p2);
+    if (!p1 || !p2) return;
+
+    let p1Pos = posMap.get(p1.id);
+    let p2Pos = posMap.get(p2.id);
+    if (!p1Pos || !p2Pos) return;
+
+    // Зүүн/баруун гэж ялгая
+    if (p1Pos.x > p2Pos.x) {
+      const tmp = p1Pos;
+      p1Pos = p2Pos;
+      p2Pos = tmp;
+    }
+
+    // Хүүхдүүдийн байрлалууд
+    const childPositions = group.children
+      .map((id) => posMap.get(id))
+      .filter(Boolean);
+
+    if (childPositions.length === 0) return;
+
+    // Эцэг эхийн доод ирмэг, хүүхдүүдийн дээд ирмэг
+    const yParentsBottom = p1Pos.y + CARD_H / 2;
+    const yChildTop = childPositions[0].y - CARD_H / 2;
+
+    // Эцэг эх–хүүхдийн хоорондын дунд хэсэг (хоёр эцэг эхээс доош)
+    const yMidParents = (yParentsBottom + yChildTop) / 2;
+    const midXParents = (p1Pos.x + p2Pos.x) / 2;
+
+    // Хүүхдүүдийн sibling шугамын байрлал
+    const minChildX = Math.min(...childPositions.map((p) => p.x));
+    const maxChildX = Math.max(...childPositions.map((p) => p.x));
+    const ySibling = yChildTop - 20; // хүүхдийн картаас 20px дээрх sibling шугам
+
+    ctx.beginPath();
+
+    // Эцэг эхээс доош
+    ctx.moveTo(p1Pos.x, yParentsBottom);
+    ctx.lineTo(p1Pos.x, yMidParents);
+
+    ctx.moveTo(p2Pos.x, yParentsBottom);
+    ctx.lineTo(p2Pos.x, yMidParents);
+
+    // Эцэг эх хоорондоо хөндлөн
+    ctx.moveTo(p1Pos.x, yMidParents);
+    ctx.lineTo(p2Pos.x, yMidParents);
+
+    // Дундаас нь доош хүүхдүүдийн sibling шугам руу
+    ctx.moveTo(midXParents, yMidParents);
+    ctx.lineTo(midXParents, ySibling);
+
+    // Хүүхдүүдийн sibling шугам (зүүн -> баруун)
+    ctx.moveTo(minChildX, ySibling);
+    ctx.lineTo(maxChildX, ySibling);
+
+    // Хүүхэд бүрийн босоо шугам
+    childPositions.forEach((pos) => {
+      ctx.moveTo(pos.x, ySibling);
+      ctx.lineTo(pos.x, yChildTop);
+    });
+
+    ctx.stroke();
+  });
+
+  // 3) ХАНЬ хоорондын шугам (гэрлэсэн/ханилсан аль ч тохиолдолд)
+  members.forEach((m) => {
+    if (!m.spouseId) return;
+
+    const spouse = findMember(m.spouseId);
+    if (!spouse) return;
+
+    // Нэг хосыг 2 удаа зурахаас сэргийлнэ
+    if (m.id > spouse.id) return;
+
+    const mPos = posMap.get(m.id);
+    const sPos = posMap.get(spouse.id);
+    if (!mPos || !sPos) return;
+
+    const y = mPos.y; // картын дунд өндрөөр шугам татъя
+
+    ctx.beginPath();
+    ctx.moveTo(mPos.x + CARD_W / 4, y);
+    ctx.lineTo(sPos.x - CARD_W / 4, y);
+    ctx.stroke();
   });
 }
