@@ -222,15 +222,6 @@ body {
 .tree-line-color {
   color: #8a6a4a;
 }
-.tree-root {
-  position: relative;
-  width: 100%;
-  height: 600px;
-  background: #f5efe3;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: auto;
-}
 
 #tree-lines {
   position: absolute;

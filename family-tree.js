@@ -1,32 +1,28 @@
 // ================== TOGTOOSON HEMJEE ==================
 const CARD_W = 150;
 const CARD_H = 190;
-const H_GAP = 60;  // хөндлөн card хоорондын зай
+const H_GAP = 60;  // хөндлөн unit хоорондын зай
 const V_GAP = 60;  // босоо мөр хоорондын зай
 
 // ================== DATA COMPONENT ==================
 class FamilyMember {
-  constructor({ id, name, level, parentId = null, col = 0 }) {
+  constructor({ id, name, level }) {
     this.id = id;
-    this.name = name;
+    this.name = name || "";
     this.level = level;      // үе (0 = би, -1 = эцэг эх, +1 = хүүхэд гэх мэт)
-    this.parentId = parentId;
 
-    const parts = (name || "").trim().split(/\s+/);
+    const parts = (this.name || "").trim().split(/\s+/);
     this.lastname = parts[0] || "";
     this.firstname = parts[1] || "";
 
-    // логик байрлал (layout-д ашиглана)
-    this.col = col;
-
-    // pixel байрлал – layoutTree() энэ хоёрыг тооцоолно
+    // pixel байрлал – зөвхөн layoutTree() тооцоолно
     this.x = 0;
     this.y = 0;
 
     // харилцаа
     this.parents = [];    // [id, id?]
     this.children = [];   // [id, ...]
-    this.spouseId = null; // ганц spouse гэж үзэж байна (одоо)
+    this.spouseId = null; // одоохондоо 1 хань гэж үзсэн
   }
 }
 
@@ -34,7 +30,7 @@ let members = [];
 let nextId = 1;
 
 let treeRoot, nodesLayer, canvas, ctx;
-const posMap = new Map(); // id -> {x, y}
+let posMap = new Map(); // id -> {x, y}
 
 // ================== INIT ==================
 window.addEventListener("DOMContentLoaded", () => {
@@ -48,7 +44,6 @@ window.addEventListener("DOMContentLoaded", () => {
     id: nextId++,
     name: "Би",
     level: 0,
-    col: 0,
   });
   members.push(me);
 
@@ -56,7 +51,7 @@ window.addEventListener("DOMContentLoaded", () => {
   renderTree();
 
   window.addEventListener("resize", () => {
-    layoutTree();   // өргөн өөрчлөгдвөл мөрөө дахиад төвлөрүүлнэ
+    layoutTree();   // өргөн өөрчлөгдвөл дахиад зөв байрлуулна
     renderTree();
   });
 
@@ -65,7 +60,11 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// ================== LAYOUT (дарахгүйгээр автоматаар байрлуулах) ==================
+// ================== HELPER ==================
+function findMember(id) {
+  return members.find((m) => m.id === id);
+}
+
 function layoutTree() {
   if (!treeRoot) return;
 
@@ -77,46 +76,183 @@ function layoutTree() {
   const rowGap = CARD_H + V_GAP;
   const containerWidth = treeRoot.clientWidth || 900;
 
-  // level бүр дээр col-оор нь эрэмбэлээд, дахин col индекс олгоно
-  levels.forEach((levelValue, rowIndex) => {
-    const rowNodes = members
-      .filter((m) => m.level === levelValue)
-      .sort((a, b) => a.col - b.col);
+  const newPosMap = new Map();
 
-    rowNodes.forEach((m, i) => {
-      m.col = i; // дахин индексжүүлнэ
+  levels.forEach((levelValue, rowIndex) => {
+    const rowNodes = members.filter((m) => m.level === levelValue);
+    if (!rowNodes.length) return;
+
+    // 1) Эхлээд anchorX тооцоё (эцэг эхийнх нь дундаж X)
+    let hasAnchor = false;
+    rowNodes.forEach((m) => {
+      let anchor = 0;
+      if (m.parents && m.parents.length > 0) {
+        const parentPosList = m.parents
+          .map((pid) => newPosMap.get(pid))
+          .filter(Boolean);
+
+        if (parentPosList.length > 0) {
+          anchor =
+            parentPosList.reduce((sum, p) => sum + p.x, 0) /
+            parentPosList.length;
+          hasAnchor = true;
+        }
+      }
+      m._anchor = anchor;
     });
 
-    const count = rowNodes.length;
-    if (count === 0) return;
+    // 2) Тухайн level-ийн "unit"-үүдийг үүсгэнэ (ганц хүн, эсвэл хос)
+    const used = new Set();
+    const units = [];
 
-    const rowWidth = count * CARD_W + (count - 1) * H_GAP;
-    const startX = Math.max((containerWidth - rowWidth) / 2, 20) + CARD_W / 2;
+    rowNodes.forEach((m) => {
+      if (used.has(m.id)) return;
+
+      if (m.spouseId) {
+        const s = findMember(m.spouseId);
+        if (s && s.level === levelValue && !used.has(s.id)) {
+          units.push({
+            type: "couple",
+            ids: [m.id, s.id],
+          });
+          used.add(m.id);
+          used.add(s.id);
+          return;
+        }
+      }
+
+      units.push({
+        type: "single",
+        ids: [m.id],
+      });
+      used.add(m.id);
+    });
+
     const y = paddingTop + rowIndex * rowGap;
+    const UNIT_WIDTH = CARD_W * 2.2;
+    const MIN_DIST = UNIT_WIDTH + H_GAP * 0.2;
 
-    rowNodes.forEach((m, i) => {
-      const x = startX + i * (CARD_W + H_GAP);
-      m.x = x;
-      m.y = y;
+    // 3) Хэрвээ энэ level-д эцэг эхийн anchor БҮРЭН алга (жишээ нь хамгийн дээд үе)
+    //    бол хуучин шигээ "мөрөө голлуулж" байрлуулна
+    if (!hasAnchor) {
+      const unitCount = units.length;
+      const totalWidth =
+        unitCount * UNIT_WIDTH + (unitCount - 1) * H_GAP;
+      const startX = Math.max((containerWidth - totalWidth) / 2, 20);
+
+      units.forEach((u, idx) => {
+        const centerX =
+          startX + idx * (UNIT_WIDTH + H_GAP) + UNIT_WIDTH / 2;
+
+        if (u.type === "single") {
+          const id = u.ids[0];
+          newPosMap.set(id, { x: centerX, y });
+        } else {
+          const [id1, id2] = [...u.ids].sort((a, b) => a - b);
+          const offset = CARD_W * 0.55;
+
+          newPosMap.set(id1, { x: centerX - offset, y });
+          newPosMap.set(id2, { x: centerX + offset, y });
+        }
+      });
+
+      return;
+    }
+
+    // 4) Anchor-тэй тохиолдолд: эцэг эхийнхээ яг доор тавина
+    units.forEach((u) => {
+      const anchors = u.ids.map((id) => {
+        const mem = rowNodes.find((m) => m.id === id);
+        return mem ? mem._anchor || 0 : 0;
+      });
+      let avg =
+        anchors.reduce((sum, a) => sum + a, 0) /
+        Math.max(anchors.length, 1);
+      if (!avg || !isFinite(avg)) avg = 0;
+      u.anchor = avg;
+    });
+
+    // Anchor-ээр нь эрэмбэлж дарааллыг тогтооно
+    units.sort((a, b) => a.anchor - b.anchor);
+
+    // 5) Anchor-руу аль болох ойрхон тавих, давхцахгүй байлгах
+    let currentX = null;
+    units.forEach((u, idx) => {
+      let desired = u.anchor;
+
+      // Зарим unit-д parent байхгүй байж болно (ah duu гэх мэт) – тэднийг урд unit-ийн баруун талд байрлуулна
+      if (!desired || !isFinite(desired)) {
+        desired =
+          currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
+      }
+
+      let centerX;
+      if (currentX == null) {
+        centerX = desired || containerWidth / 2;
+      } else {
+        // давхцахаас сэргийлж, хамгийн багадаа MIN_DIST зайтай болгоно
+        centerX = Math.max(desired, currentX + MIN_DIST);
+      }
+
+      u._centerX = centerX;
+      currentX = centerX;
+    });
+
+    // Бага зэрэг "нэг мөр цэгцтэй" харагдуулахын тулд бүх unit-үүдийг жаахан шилжүүлж болно
+    let minX = Math.min(...units.map((u) => u._centerX));
+    let maxX = Math.max(...units.map((u) => u._centerX));
+    const margin = 40;
+    let shift = 0;
+
+    if (maxX - minX < containerWidth) {
+      // контейнерийн дотор боломжит хэмжээнд бага зэрэг төвлөрүүлье
+      const usedWidth = maxX - minX;
+      shift = (containerWidth - usedWidth) / 2 - minX;
+    } else if (minX < margin) {
+      shift = margin - minX;
+    }
+
+    units.forEach((u) => {
+      const cx = u._centerX + shift;
+
+      if (u.type === "single") {
+        const id = u.ids[0];
+        newPosMap.set(id, { x: cx, y });
+      } else {
+        const [id1, id2] = [...u.ids].sort((a, b) => a - b);
+        const offset = CARD_W * 0.55;
+
+        newPosMap.set(id1, { x: cx - offset, y });
+        newPosMap.set(id2, { x: cx + offset, y });
+      }
     });
   });
 
-  // container-ийн өндрийг бүх мөрөнд тааруулна
+  // Member-үүдийн x, y-гаа шинэчилнэ
+  members.forEach((m) => {
+    const pos = newPosMap.get(m.id);
+    if (pos) {
+      m.x = pos.x;
+      m.y = pos.y;
+    }
+  });
+
+  posMap = newPosMap;
+
+  // container-ийн өндрийг level-ийн тоонд тааруулна
   const totalHeight =
     paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H;
   treeRoot.style.height = Math.max(450, totalHeight) + "px";
 }
+
 
 // ================== CARD RENDER ==================
 function renderTree() {
   if (!nodesLayer) return;
 
   nodesLayer.innerHTML = "";
-  posMap.clear();
 
   members.forEach((m) => {
-    posMap.set(m.id, { x: m.x, y: m.y });
-
     const card = createFamilyCard(m);
     card.style.left = m.x - CARD_W / 2 + "px";
     card.style.top = m.y - CARD_H / 2 + "px";
@@ -139,7 +275,7 @@ function createFamilyCard(member) {
   const card = document.createElement("div");
   card.className = "family-card";
 
-  // ↑ товч (одоо зөвхөн UI, тусад нь логик өгөх бол хойш нь тавьж болно)
+  // ↑ товч (одоохондоо логик өгөөгүй, дараагийн шатанд ашиглаж болно)
   const btnUp = document.createElement("button");
   btnUp.className = "node-btn node-btn-up";
   btnUp.setAttribute("aria-label", "Дээр хүн нэмэх");
@@ -236,10 +372,10 @@ function createFamilyCard(member) {
     closeAllMenus();
   });
 
-  // ↑ товчинд одоогоор тусгай логик өгөөгүй, шаардлагатай бол дараа нь хэрэглэж болно
   btnUp.addEventListener("click", (e) => {
     e.stopPropagation();
     console.log("Up товч дарагдлаа:", member);
+    // дараагийн шат: "өндөр түвшний" хүн нэмэх гэх мэт логик өгч болно
   });
 
   return card;
@@ -258,9 +394,6 @@ function closeAllMenus() {
 }
 
 // ================== ADD FUNCTIONS ==================
-function findMember(id) {
-  return members.find((m) => m.id === id);
-}
 
 // Эцэг эх нэмэх – тухайн node-ийн дээр хоёр card
 function addParents(child) {
@@ -271,19 +404,16 @@ function addParents(child) {
 
   const parentLevel = child.level - 1;
 
-  // col-оо child.col-оос бага зэрэг тарааж өгөөд, дараа нь layoutTree() жигдлэнэ
   const father = new FamilyMember({
     id: nextId++,
     name: "Аав",
     level: parentLevel,
-    col: child.col - 0.5,
   });
 
   const mother = new FamilyMember({
     id: nextId++,
     name: "Ээж",
     level: parentLevel,
-    col: child.col + 0.5,
   });
 
   // харилцаа
@@ -291,13 +421,17 @@ function addParents(child) {
   mother.children.push(child.id);
   child.parents = [father.id, mother.id];
 
+  // эцэг, эхийг хооронд нь хань болгоё (гэрлэсэн хувилбар)
+  father.spouseId = mother.id;
+  mother.spouseId = father.id;
+
   members.push(father, mother);
 
   layoutTree();
   renderTree();
 }
 
-// Хань нэмэх – тухайн node-ийн хажууд 1 card (эцэг эхтэй нь холбохгүй)
+// Хань нэмэх – тухайн node-ийн хажууд 1 card
 function addSpouse(person) {
   if (person.spouseId) {
     console.log("Хань аль хэдийн байна");
@@ -308,8 +442,6 @@ function addSpouse(person) {
     id: nextId++,
     name: "Хань",
     level: person.level,
-    // багахан 0.01 зөрүү өгснөөр layout хийхдээ яг баруун талд нь байрлана
-    col: person.col + 0.01,
   });
 
   spouse.spouseId = person.id;
@@ -321,33 +453,27 @@ function addSpouse(person) {
   renderTree();
 }
 
-
 // Хүүхэд нэмэх – доор олон card нэмэгдэж болно (нэг нэгээр)
 function addChild(parent) {
   const childLevel = parent.level + 1;
-
-  // parent + spouse байсан бол дундуур нь position-оо авахын тулд col-оо ойролцоолъё
-  let baseCol = parent.col;
-  const spouse = parent.spouseId ? findMember(parent.spouseId) : null;
-  if (spouse) {
-    baseCol = (parent.col + spouse.col) / 2;
-  }
 
   const child = new FamilyMember({
     id: nextId++,
     name: "Хүүхэд",
     level: childLevel,
-    col: baseCol,
   });
 
   // parent–child харилцаа
   child.parents.push(parent.id);
   parent.children.push(child.id);
 
-  // spouse байвал түүнтэй ч холбоно (эцэг эхэд хань нь холбогдохгүй, зөвхөн хүүхэдтэй)
-  if (spouse) {
-    child.parents.push(spouse.id);
-    spouse.children.push(child.id);
+  // spouse байвал түүнтэй ч холбоно
+  if (parent.spouseId) {
+    const spouse = findMember(parent.spouseId);
+    if (spouse) {
+      child.parents.push(spouse.id);
+      spouse.children.push(child.id);
+    }
   }
 
   members.push(child);
@@ -363,28 +489,32 @@ function drawLines() {
   ctx.strokeStyle = "#8a6a4a";
   ctx.lineWidth = 2;
 
-  // 1) ГАНЦ эцэг/эхтэй хүүхдүүдийн шугам
-  members.forEach((child) => {
-    if (!child.parents || child.parents.length !== 1) return;
+  // ===== 1. ХАНЬ ХООРОНДЫН ШУГАМ (картын дунд) =====
+  members.forEach(m => {
+    if (!m.spouseId) return;
 
-    const pId = child.parents[0];
-    const pPos = posMap.get(pId);
-    const cPos = posMap.get(child.id);
-    if (!pPos || !cPos) return;
+    const spouse = findMember(m.spouseId);
+    if (!spouse) return;
 
-    const yParentBottom = pPos.y + CARD_H / 2;
-    const yChildTop = cPos.y - CARD_H / 2;
+    // нэг хосыг 2 удаа зурахаас сэргийлнэ
+    if (m.id > spouse.id) return;
+
+    const p1 = posMap.get(m.id);
+    const p2 = posMap.get(spouse.id);
+    if (!p1 || !p2) return;
+
+    const y = p1.y; // картын төв
 
     ctx.beginPath();
-    ctx.moveTo(pPos.x, yParentBottom);
-    ctx.lineTo(cPos.x, yChildTop);
+    ctx.moveTo(p1.x + CARD_W * 0.3, y);
+    ctx.lineTo(p2.x - CARD_W * 0.3, y);
     ctx.stroke();
   });
 
-  // 2) ХОЁР эцэг эхтэй хүүхдүүдийг parent-pair эсвэл хосоор нь групплэх
-  const pairMap = new Map(); // "p1-p2" -> { p1, p2, children: [id...] }
+  // ===== 2. ХОЁР ЭЦЭГ ЭХ + ОЛОН ХҮҮХЭД (FS-style бүтэц) =====
+  const pairMap = new Map(); // "p1-p2" -> { parents:[p1,p2], children:[...] }
 
-  members.forEach((child) => {
+  members.forEach(child => {
     if (!child.parents || child.parents.length < 2) return;
 
     const [a, b] = child.parents;
@@ -393,97 +523,85 @@ function drawLines() {
     const key = p1 + "-" + p2;
 
     if (!pairMap.has(key)) {
-      pairMap.set(key, { p1, p2, children: [] });
+      pairMap.set(key, { parents: [p1, p2], children: [] });
     }
     pairMap.get(key).children.push(child.id);
   });
 
-  // Тухайн эцэг эхийн хос бүр дээр 1 удаа шугам зурах
-  pairMap.forEach((group) => {
-    const p1 = findMember(group.p1);
-    const p2 = findMember(group.p2);
-    if (!p1 || !p2) return;
+  pairMap.forEach(group => {
+    const [p1id, p2id] = group.parents;
+    const parent1Pos = posMap.get(p1id);
+    const parent2Pos = posMap.get(p2id);
+    if (!parent1Pos || !parent2Pos) return;
 
-    let p1Pos = posMap.get(p1.id);
-    let p2Pos = posMap.get(p2.id);
-    if (!p1Pos || !p2Pos) return;
-
-    // Зүүн/баруун гэж ялгая
-    if (p1Pos.x > p2Pos.x) {
-      const tmp = p1Pos;
-      p1Pos = p2Pos;
-      p2Pos = tmp;
-    }
-
-    // Хүүхдүүдийн байрлалууд
-    const childPositions = group.children
-      .map((id) => posMap.get(id))
+    const childrenPos = group.children
+      .map(id => posMap.get(id))
       .filter(Boolean);
 
-    if (childPositions.length === 0) return;
+    if (!childrenPos.length) return;
 
-    // Эцэг эхийн доод ирмэг, хүүхдүүдийн дээд ирмэг
-    const yParentsBottom = p1Pos.y + CARD_H / 2;
-    const yChildTop = childPositions[0].y - CARD_H / 2;
+    // Эцэг эхийн доод ирмэг, хүүхдийн дээд ирмэг
+    const parentBottomY = parent1Pos.y + CARD_H / 2;
+    const childTopY = childrenPos[0].y - CARD_H / 2;
 
-    // Эцэг эх–хүүхдийн хоорондын дунд хэсэг (хоёр эцэг эхээс доош)
-    const yMidParents = (yParentsBottom + yChildTop) / 2;
-    const midXParents = (p1Pos.x + p2Pos.x) / 2;
+    // Эцэг эхийн хоорондын дундаж X
+    const midParentX = (parent1Pos.x + parent2Pos.x) / 2;
 
-    // Хүүхдүүдийн sibling шугамын байрлал
-    const minChildX = Math.min(...childPositions.map((p) => p.x));
-    const maxChildX = Math.max(...childPositions.map((p) => p.x));
-    const ySibling = yChildTop - 20; // хүүхдийн картаас 20px дээрх sibling шугам
+    // Эцэг эхийн доорхи horizontal joint (FS-д яг картын доор байдаг)
+    const parentsBarY = parentBottomY + 16;
+
+    // Хүүхдүүдийн sibling line байрлал
+    const minChildX = Math.min(...childrenPos.map(c => c.x));
+    const maxChildX = Math.max(...childrenPos.map(c => c.x));
+    const siblingY = childTopY - 20;
 
     ctx.beginPath();
 
-    // Эцэг эхээс доош
-    ctx.moveTo(p1Pos.x, yParentsBottom);
-    ctx.lineTo(p1Pos.x, yMidParents);
+    // Эцэг эх тус бүрээс доош босоо
+    ctx.moveTo(parent1Pos.x, parentBottomY);
+    ctx.lineTo(parent1Pos.x, parentsBarY);
 
-    ctx.moveTo(p2Pos.x, yParentsBottom);
-    ctx.lineTo(p2Pos.x, yMidParents);
+    ctx.moveTo(parent2Pos.x, parentBottomY);
+    ctx.lineTo(parent2Pos.x, parentsBarY);
 
-    // Эцэг эх хоорондоо хөндлөн
-    ctx.moveTo(p1Pos.x, yMidParents);
-    ctx.lineTo(p2Pos.x, yMidParents);
+    // Эцэг эхийн доорх хөндлөн joint
+    ctx.moveTo(parent1Pos.x, parentsBarY);
+    ctx.lineTo(parent2Pos.x, parentsBarY);
 
-    // Дундаас нь доош хүүхдүүдийн sibling шугам руу
-    ctx.moveTo(midXParents, yMidParents);
-    ctx.lineTo(midXParents, ySibling);
+    // Joint-ын дундаас sibling line руу доош
+    ctx.moveTo(midParentX, parentsBarY);
+    ctx.lineTo(midParentX, siblingY);
 
-    // Хүүхдүүдийн sibling шугам (зүүн -> баруун)
-    ctx.moveTo(minChildX, ySibling);
-    ctx.lineTo(maxChildX, ySibling);
+    // Sibling line (ах дүүсийг холбосон хөндлөн)
+    ctx.moveTo(minChildX, siblingY);
+    ctx.lineTo(maxChildX, siblingY);
 
-    // Хүүхэд бүрийн босоо шугам
-    childPositions.forEach((pos) => {
-      ctx.moveTo(pos.x, ySibling);
-      ctx.lineTo(pos.x, yChildTop);
+    // Хүүхэд бүрийн дээрээс доош
+    childrenPos.forEach(pos => {
+      ctx.moveTo(pos.x, siblingY);
+      ctx.lineTo(pos.x, childTopY);
     });
 
     ctx.stroke();
   });
 
-  // 3) ХАНЬ хоорондын шугам (гэрлэсэн/ханилсан аль ч тохиолдолд)
-  members.forEach((m) => {
-    if (!m.spouseId) return;
+  // ===== 3. ГАНЦ ЭЦЭГ/ЭХТЭЙ ХҮҮХЭД =====
+  members.forEach(child => {
+    if (!child.parents || child.parents.length !== 1) return;
 
-    const spouse = findMember(m.spouseId);
-    if (!spouse) return;
+    const parentId = child.parents[0];
+    const p = posMap.get(parentId);
+    const c = posMap.get(child.id);
+    if (!p || !c) return;
 
-    // Нэг хосыг 2 удаа зурахаас сэргийлнэ
-    if (m.id > spouse.id) return;
-
-    const mPos = posMap.get(m.id);
-    const sPos = posMap.get(spouse.id);
-    if (!mPos || !sPos) return;
-
-    const y = mPos.y; // картын дунд өндрөөр шугам татъя
+    const parentBottom = p.y + CARD_H / 2;
+    const childTop = c.y - CARD_H / 2;
 
     ctx.beginPath();
-    ctx.moveTo(mPos.x + CARD_W / 4, y);
-    ctx.lineTo(sPos.x - CARD_W / 4, y);
+    ctx.moveTo(p.x, parentBottom);
+    ctx.lineTo(p.x, (parentBottom + childTop) / 2);
+    ctx.lineTo(c.x, (parentBottom + childTop) / 2);
+    ctx.lineTo(c.x, childTop);
     ctx.stroke();
   });
 }
