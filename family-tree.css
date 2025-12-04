@@ -18,7 +18,7 @@ body {
 }
 
 .tree-layout {
-  max-width: 1100px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -133,47 +133,16 @@ body {
   height: 76px;
   border-radius: 50%;
   border: 2px solid #dcbda0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;          /* зураг дугуйны дотор багтана */
+  background: #f8f1e8;
 }
 
-/* Placeholder icon (зураг оруулахгүй үед) */
-
-.avatar-icon {
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;         /* зургийг тайрч тааруулна */
+  border-radius: 50%;
   display: block;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid #5c4033;
-  position: relative;
-}
-
-/* Толгой */
-.avatar-icon::before {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #5c4033;
-}
-
-/* Бие */
-.avatar-icon::after {
-  content: "";
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 10px;
-  border-radius: 10px 10px 0 0;
-  border: 2px solid #5c4033;
-  border-bottom: none;
 }
 
 /* Нэр */
@@ -233,4 +202,4 @@ body {
 #tree-nodes {
   position: absolute;
   inset: 0;
-}
+} 

@@ -1,28 +1,29 @@
 // ================== TOGTOOSON HEMJEE ==================
 const CARD_W = 150;
 const CARD_H = 190;
-const H_GAP = 60;  // хөндлөн unit хоорондын зай
-const V_GAP = 60;  // босоо мөр хоорондын зай
+const H_GAP = 60; // хөндлөн unit хоорондын зай
+const V_GAP = 60; // босоо мөр хоорондын зай
 
-// ================== DATA COMPONENT ==================
 class FamilyMember {
-  constructor({ id, name, level }) {
+  constructor({ id, name, level, photoUrl }) {
     this.id = id;
     this.name = name || "";
-    this.level = level;      // үе (0 = би, -1 = эцэг эх, +1 = хүүхэд гэх мэт)
+    this.level = level; // үе (0 = би, -1 = эцэг эх, +1 = хүүхэд гэх мэт)
 
     const parts = (this.name || "").trim().split(/\s+/);
     this.lastname = parts[0] || "";
     this.firstname = parts[1] || "";
 
-    // pixel байрлал – зөвхөн layoutTree() тооцоолно
+    // шинэ: зураг
+    this.photoUrl = photoUrl || "profileson.jpg"; // энд default зурагны файлаа ашиглаарай
+
+    // pixel байрлал
     this.x = 0;
     this.y = 0;
 
-    // харилцаа
-    this.parents = [];    // [id, id?]
-    this.children = [];   // [id, ...]
-    this.spouseId = null; // одоохондоо 1 хань гэж үзсэн
+    this.parents = [];
+    this.children = [];
+    this.spouseId = null;
   }
 }
 
@@ -51,7 +52,7 @@ window.addEventListener("DOMContentLoaded", () => {
   renderTree();
 
   window.addEventListener("resize", () => {
-    layoutTree();   // өргөн өөрчлөгдвөл дахиад зөв байрлуулна
+    layoutTree(); // өргөн өөрчлөгдвөл дахиад зөв байрлуулна
     renderTree();
   });
 
@@ -136,13 +137,11 @@ function layoutTree() {
     //    бол хуучин шигээ "мөрөө голлуулж" байрлуулна
     if (!hasAnchor) {
       const unitCount = units.length;
-      const totalWidth =
-        unitCount * UNIT_WIDTH + (unitCount - 1) * H_GAP;
+      const totalWidth = unitCount * UNIT_WIDTH + (unitCount - 1) * H_GAP;
       const startX = Math.max((containerWidth - totalWidth) / 2, 20);
 
       units.forEach((u, idx) => {
-        const centerX =
-          startX + idx * (UNIT_WIDTH + H_GAP) + UNIT_WIDTH / 2;
+        const centerX = startX + idx * (UNIT_WIDTH + H_GAP) + UNIT_WIDTH / 2;
 
         if (u.type === "single") {
           const id = u.ids[0];
@@ -166,8 +165,7 @@ function layoutTree() {
         return mem ? mem._anchor || 0 : 0;
       });
       let avg =
-        anchors.reduce((sum, a) => sum + a, 0) /
-        Math.max(anchors.length, 1);
+        anchors.reduce((sum, a) => sum + a, 0) / Math.max(anchors.length, 1);
       if (!avg || !isFinite(avg)) avg = 0;
       u.anchor = avg;
     });
@@ -182,8 +180,7 @@ function layoutTree() {
 
       // Зарим unit-д parent байхгүй байж болно (ah duu гэх мэт) – тэднийг урд unit-ийн баруун талд байрлуулна
       if (!desired || !isFinite(desired)) {
-        desired =
-          currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
+        desired = currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
       }
 
       let centerX;
@@ -240,11 +237,9 @@ function layoutTree() {
   posMap = newPosMap;
 
   // container-ийн өндрийг level-ийн тоонд тааруулна
-  const totalHeight =
-    paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H;
+  const totalHeight = paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H;
   treeRoot.style.height = Math.max(450, totalHeight) + "px";
 }
-
 
 // ================== CARD RENDER ==================
 function renderTree() {
@@ -315,10 +310,12 @@ function createFamilyCard(member) {
   const avatarCircle = document.createElement("div");
   avatarCircle.className = "avatar-circle";
 
-  const avatarIcon = document.createElement("span");
-  avatarIcon.className = "avatar-icon";
+  const avatarImg = document.createElement("img");
+  avatarImg.className = "avatar-img";
+  avatarImg.src = member.photoUrl || "profile.png";
+  avatarImg.alt = member.firstname || member.name || "Профайл зураг";
 
-  avatarCircle.appendChild(avatarIcon);
+  avatarCircle.appendChild(avatarImg);
   avatarWrap.appendChild(avatarCircle);
 
   // нэр
@@ -408,12 +405,14 @@ function addParents(child) {
     id: nextId++,
     name: "Аав",
     level: parentLevel,
+    photoUrl: "profileman.avif",
   });
 
   const mother = new FamilyMember({
     id: nextId++,
     name: "Ээж",
     level: parentLevel,
+    photoUrl: "profilewoman.jpg",
   });
 
   // харилцаа
@@ -442,6 +441,7 @@ function addSpouse(person) {
     id: nextId++,
     name: "Хань",
     level: person.level,
+    photoUrl: "profilespouse.jpg",
   });
 
   spouse.spouseId = person.id;
@@ -461,6 +461,7 @@ function addChild(parent) {
     id: nextId++,
     name: "Хүүхэд",
     level: childLevel,
+    photoUrl: "profileson.jpg",
   });
 
   // parent–child харилцаа
@@ -490,7 +491,7 @@ function drawLines() {
   ctx.lineWidth = 2;
 
   // ===== 1. ХАНЬ ХООРОНДЫН ШУГАМ (картын дунд) =====
-  members.forEach(m => {
+  members.forEach((m) => {
     if (!m.spouseId) return;
 
     const spouse = findMember(m.spouseId);
@@ -514,7 +515,7 @@ function drawLines() {
   // ===== 2. ХОЁР ЭЦЭГ ЭХ + ОЛОН ХҮҮХЭД (FS-style бүтэц) =====
   const pairMap = new Map(); // "p1-p2" -> { parents:[p1,p2], children:[...] }
 
-  members.forEach(child => {
+  members.forEach((child) => {
     if (!child.parents || child.parents.length < 2) return;
 
     const [a, b] = child.parents;
@@ -528,14 +529,14 @@ function drawLines() {
     pairMap.get(key).children.push(child.id);
   });
 
-  pairMap.forEach(group => {
+  pairMap.forEach((group) => {
     const [p1id, p2id] = group.parents;
     const parent1Pos = posMap.get(p1id);
     const parent2Pos = posMap.get(p2id);
     if (!parent1Pos || !parent2Pos) return;
 
     const childrenPos = group.children
-      .map(id => posMap.get(id))
+      .map((id) => posMap.get(id))
       .filter(Boolean);
 
     if (!childrenPos.length) return;
@@ -551,8 +552,8 @@ function drawLines() {
     const parentsBarY = parentBottomY + 16;
 
     // Хүүхдүүдийн sibling line байрлал
-    const minChildX = Math.min(...childrenPos.map(c => c.x));
-    const maxChildX = Math.max(...childrenPos.map(c => c.x));
+    const minChildX = Math.min(...childrenPos.map((c) => c.x));
+    const maxChildX = Math.max(...childrenPos.map((c) => c.x));
     const siblingY = childTopY - 20;
 
     ctx.beginPath();
@@ -577,7 +578,7 @@ function drawLines() {
     ctx.lineTo(maxChildX, siblingY);
 
     // Хүүхэд бүрийн дээрээс доош
-    childrenPos.forEach(pos => {
+    childrenPos.forEach((pos) => {
       ctx.moveTo(pos.x, siblingY);
       ctx.lineTo(pos.x, childTopY);
     });
@@ -586,7 +587,7 @@ function drawLines() {
   });
 
   // ===== 3. ГАНЦ ЭЦЭГ/ЭХТЭЙ ХҮҮХЭД =====
-  members.forEach(child => {
+  members.forEach((child) => {
     if (!child.parents || child.parents.length !== 1) return;
 
     const parentId = child.parents[0];
