@@ -55,7 +55,7 @@ window.addEventListener("DOMContentLoaded", () => {
     age: "",
     sex: "",
     level: 0,
-    photoUrl: "profileson.jpg", // чиний код шиг default
+    photoUrl: "img/profileson.jpg", // чиний код шиг default
   });
   members.push(me);
 
@@ -414,7 +414,7 @@ function createFamilyCard(member) {
     openPersonModal("add-father", member, {
       sex: "male",
       name: "Эцэг",
-      photoUrl: "profileman.avif", // чиний кодны аавын зураг
+      photoUrl: "img/profileman.avif", // чиний кодны аавын зураг
     });
     closeAllMenus();
   });
@@ -424,7 +424,7 @@ function createFamilyCard(member) {
     openPersonModal("add-mother", member, {
       sex: "female",
       name: "Эх",
-      photoUrl: "profilewoman.jpg", // ээж
+      photoUrl: "img/profilewoman.jpg", // ээж
     });
     closeAllMenus();
   });
@@ -433,7 +433,7 @@ function createFamilyCard(member) {
     e.stopPropagation();
     openPersonModal("add-spouse", member, {
       name: "Хань",
-      photoUrl: "profilespouse.jpg", // хань
+      photoUrl: "img/profilespouse.jpg", // хань
     });
     closeAllMenus();
   });
@@ -442,7 +442,7 @@ function createFamilyCard(member) {
     e.stopPropagation();
     openPersonModal("add-child", member, {
       name: "Хүүхэд",
-      photoUrl: "profileson.jpg", // хүүхэд
+      photoUrl: "img/profileson.jpg", // хүүхэд
     });
     closeAllMenus();
   });
@@ -603,7 +603,7 @@ function addFatherWithData(child, data) {
     age: data.age,
     sex: "male",
     level,
-    photoUrl: data.photoUrl || "profileman.avif",
+    photoUrl: data.photoUrl || "img/profileman.avif",
   });
 
   father.children.push(child.id);
@@ -634,7 +634,7 @@ function addMotherWithData(child, data) {
     age: data.age,
     sex: "female",
     level,
-    photoUrl: data.photoUrl || "profilewoman.jpg",
+    photoUrl: data.photoUrl || "img/profilewoman.jpg",
   });
 
   mother.children.push(child.id);
@@ -665,7 +665,7 @@ function addSpouseWithData(person, data) {
     age: data.age,
     sex,
     level: person.level,
-    photoUrl: data.photoUrl || "profilespouse.jpg",
+    photoUrl: data.photoUrl || "img/profilespouse.jpg",
   });
 
   spouse.spouseId = person.id;
@@ -684,7 +684,7 @@ function addChildWithData(parent, data) {
     age: data.age,
     sex,
     level,
-    photoUrl: data.photoUrl || "profileson.jpg",
+    photoUrl: data.photoUrl || "img/profileson.jpg",
   });
 
   // parent → child
