@@ -1,4 +1,3 @@
-// ================== ТОГТООСОН ХЭМЖЭЭ ==================
 const CARD_W = 150;
 const CARD_H = 190;
 const H_GAP = 60;
@@ -482,12 +481,17 @@ function closeAllMenus() {
     .forEach((m) => m.classList.add("hidden"));
 }
 
-// ================== MODAL (FORM) ==================
 function setupPersonModal() {
   const backdrop = document.getElementById("person-backdrop");
   const modal = document.getElementById("person-modal");
   const form = document.getElementById("person-form");
   const btnCancel = document.getElementById("person-cancel");
+
+  // Хэрвээ эдгээрээс аль нэг нь байхгүй бол modal-гүй хуудсан дээр байна гэж үзээд алдаа гаргалгүй return хийнэ
+  if (!backdrop || !modal || !form || !btnCancel) {
+    console.warn("Person modal elements not found, skipping modal setup");
+    return;
+  }
 
   btnCancel.addEventListener("click", closePersonModal);
   backdrop.addEventListener("click", closePersonModal);
@@ -497,6 +501,7 @@ function setupPersonModal() {
     submitPersonForm();
   });
 }
+
 
 function openPersonModal(mode, targetMember, preset = {}) {
   modalMode = mode;

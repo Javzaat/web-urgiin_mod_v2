@@ -18,12 +18,7 @@
         <span>Undes</span>
       </div>
 
-      <button
-        class="nav-toggle"
-        aria-controls="main-nav"
-        aria-expanded="false"
-        aria-label="Цэс нээх/хаах"
-      >
+      <button class="nav-toggle" aria-controls="main-nav" aria-expanded="false">
         <img src="img/menu-close.svg" class="icon icon-menu" />
         <img src="img/menu-open.svg" class="icon icon-close" />
       </button>
@@ -41,10 +36,9 @@
       </div>
     </header>
 
-    <!-- ============== FAMILY TREE MAIN ============== -->
+    <!-- ============== FAMILY TREE ============== -->
     <main class="tree-page">
       <section class="tree-layout">
-        <!-- Модны үндсэн талбар: canvas (шугам) + cards (node) -->
         <div id="tree-root" class="tree-root">
           <canvas id="tree-lines"></canvas>
           <div id="tree-nodes"></div>
@@ -52,18 +46,50 @@
       </section>
     </main>
 
-    <!-- ============== AUTH MODAL ============== -->
-    <div class="auth-backdrop" id="auth-backdrop" hidden></div>
+    <!-- ============== PERSON MODAL FOR TREE ============== -->
+    <div id="person-backdrop" class="person-backdrop" hidden></div>
+    <div id="person-modal" class="person-modal" hidden>
+      <div class="person-modal-inner">
+        <h2 id="person-modal-title">Хүн нэмэх</h2>
 
-    <div
-      class="auth-modal"
-      id="auth-modal"
-      hidden
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="authTitle"
-    >
-      <button class="auth-close" id="auth-close" aria-label="Хаах">×</button>
+        <form id="person-form">
+          <label>
+            Нэр
+            <input id="person-name" type="text" />
+          </label>
+
+          <label>
+            Нас
+            <input id="person-age" type="text" />
+          </label>
+
+          <label>
+            Хүйс
+            <select id="person-sex">
+              <option value="">—</option>
+              <option value="male">Эр</option>
+              <option value="female">Эм</option>
+            </select>
+          </label>
+
+          <label>
+            Зургийн зам
+            <input id="person-photo" type="text" placeholder="img/profileson.jpg" />
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" id="person-cancel">Болих</button>
+            <button type="submit">Хадгалах</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ============== AUTH SYSTEM (төвийн хэсэгт орхисон) ============== -->
+    <div id="auth-backdrop" class="auth-backdrop" hidden></div>
+
+    <div id="auth-modal" class="auth-modal" hidden>
+      <button class="auth-close" id="auth-close">×</button>
       <h3 id="authTitle">Нэвтрэх</h3>
 
       <div class="auth-tabs">
@@ -71,62 +97,37 @@
         <button class="tab-btn" data-tab="signup">Бүртгэл үүсгэх</button>
       </div>
 
-      <!-- SIGN IN -->
       <form class="auth-form" id="form-signin">
         <label>И-мэйл</label>
-        <input
-          type="email"
-          id="in-email"
-          placeholder="name@example.com"
-          required
-        />
+        <input id="in-email" type="email" required />
 
         <label>Нууц үг</label>
-        <input
-          type="password"
-          id="in-pass"
-          placeholder="••••••••"
-          required
-          minlength="6"
-        />
+        <input id="in-pass" type="password" required minlength="6" />
 
         <button class="cta full" type="submit">Нэвтрэх</button>
       </form>
 
-      <!-- SIGN UP -->
       <form class="auth-form hidden" id="form-signup">
         <label>Нэр</label>
-        <input type="text" id="up-name" placeholder="Таны нэр" required />
+        <input id="up-name" type="text" required />
 
         <label>И-мэйл</label>
-        <input
-          type="email"
-          id="up-email"
-          placeholder="name@example.com"
-          required
-        />
+        <input id="up-email" type="email" required />
 
         <label>Нууц үг</label>
-        <input
-          type="password"
-          id="up-pass"
-          placeholder="Минимум 6 тэмдэгт"
-          required
-          minlength="6"
-        />
+        <input id="up-pass" type="password" required minlength="6" />
 
         <button class="cta full" type="submit">Бүртгэл үүсгэх</button>
       </form>
 
-      <p class="auth-help" id="auth-msg"></p>
+      <p id="auth-msg" class="auth-help"></p>
     </div>
 
-    <!-- ============== LOGOUT MODAL ============== -->
-    <div class="logout-backdrop" id="logout-backdrop" hidden></div>
-    <div class="logout-modal" id="logout-modal" hidden>
+    <!-- LOGOUT -->
+    <div id="logout-backdrop" class="logout-backdrop" hidden></div>
+    <div id="logout-modal" class="logout-modal" hidden>
       <div class="logout-box">
         <p>Та системээс гарах уу?</p>
-
         <div class="logout-actions">
           <button id="logout-cancel" class="logout-btn cancel">Буцах</button>
           <button id="logout-confirm" class="logout-btn confirm">Гарах</button>
@@ -134,22 +135,22 @@
       </div>
     </div>
 
-    <!-- ============== TOAST ============== -->
+    <!-- TOAST -->
     <div id="toast-backdrop" class="toast-backdrop" hidden></div>
     <div id="toast-box" class="toast-box" hidden>
       <p id="toast-text">Амжилттай!</p>
     </div>
 
-    <!-- ============== SIGNUP SUCCESS POPUP ============== -->
-    <div class="success-backdrop" id="success-backdrop" hidden></div>
-    <div class="success-modal" id="success-modal" hidden>
+    <!-- SIGNUP SUCCESS -->
+    <div id="success-backdrop" class="success-backdrop" hidden></div>
+    <div id="success-modal" class="success-modal" hidden>
       <div class="success-box">
-        <p>Амжилттай бүртгэгдлээ!<br />Одоо нэвтэрнэ үү.</p>
+        <p>Амжилттай бүртгэгдлээ!</p>
         <button id="success-ok" class="success-btn">OK</button>
       </div>
     </div>
 
-       <!-- ============== SCRIPTS ============== -->
+    <!-- ============== SCRIPTS ============== -->
     <script src="header.js"></script>
     <script type="module" src="auth.js"></script>
     <script src="family-tree.js"></script>
