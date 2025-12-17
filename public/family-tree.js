@@ -1,60 +1,53 @@
+/* ================== CONSTANTS ================== */
 const CARD_W = 150;
 const CARD_H = 190;
 const H_GAP = 60;
 const V_GAP = 60;
 
-// ================== DATE MODEL ==================
+/* ================== DATA MODEL ================== */
 class FamilyMember {
-  constructor({ id, name, age, sex, level, photoUrl }) {
+  constructor({ id, name, age, sex, level }) {
     this.id = id;
     this.name = name || "";
     this.age = age || "";
-    this.sex = sex || ""; // "male" | "female" | ""
+    this.sex = sex || ""; // male / female / ""
+    this.level = level;
 
-    this.level = level;   // үе: 0 = root, -1 = эцэг эх, 1 = хүүхэд...
-
-    // байрлал
     this.x = 0;
     this.y = 0;
 
-    // харилцаа
-    this.parents = [];    // [эцэгId?, эхId?]
-    this.children = [];   // [id, ...]
-    this.spouseId = null; // 1 хань
+    this.parents = []; // [fatherId, motherId]
+    this.children = [];
+    this.spouseId = null;
 
-    // профайл зураг (URL эсвэл файлын нэр)
-    this.photoUrl = photoUrl || ""; // хоосон бол дараа нь default-уудыг ашиглана
-
-    // дээш талын мөчир нугалах тэмдэг (ancestors collapse)
-    this.collapseUp = false;
+    this.collapseUp = false; // дээш талын мөчир нугалах
   }
 }
 
+/* ================== GLOBALS ================== */
 let members = [];
 let nextId = 1;
 
 let treeRoot, nodesLayer, canvas, ctx;
-let posMap = new Map(); // id -> {x,y}
+let posMap = new Map();
 
-// Person modal state
-let modalMode = null;   // "add-father" | "add-mother" | "add-spouse" | "add-child" | "edit"
-let modalTarget = null; // FamilyMember
+let modalMode = null; // add-father / add-mother / add-spouse / add-child / edit
+let modalTarget = null;
 
-// ============== INIT ==============
+/* ================== INIT ================== */
 window.addEventListener("DOMContentLoaded", () => {
   treeRoot = document.getElementById("tree-root");
   nodesLayer = document.getElementById("tree-nodes");
   canvas = document.getElementById("tree-lines");
   ctx = canvas.getContext("2d");
 
-  // Root: "Би"
+  // Root node: Би
   const me = new FamilyMember({
     id: nextId++,
     name: "Би",
     age: "",
     sex: "",
-    level: 0,
-    photoUrl: "img/profileson.jpg", // чиний код шиг default
+    level: 0
   });
   members.push(me);
 
@@ -64,35 +57,34 @@ window.addEventListener("DOMContentLoaded", () => {
   layoutTree();
   renderTree();
 
-  window.addEventListener("resize", () => {
-    layoutTree();
-    renderTree();
-  });
+  window.addEventListener("resize", updateTree);
 
   document.addEventListener("click", () => {
     closeAllMenus();
   });
 });
 
-// ================== HELPERS ==================
+/* ================== HELPERS ================== */
 function findMember(id) {
   return members.find((m) => m.id === id);
 }
 
-// ---- ancestors hidden set (collapseUp) ----
+/* collapseUp → ancestors хасах */
 function buildHiddenAncestorSet() {
   const hidden = new Set();
 
   members.forEach((m) => {
     if (!m.collapseUp) return;
+
     const stack = [...(m.parents || [])];
 
     while (stack.length) {
       const pid = stack.pop();
       if (hidden.has(pid)) continue;
       hidden.add(pid);
+
       const p = findMember(pid);
-      if (p && p.parents && p.parents.length) {
+      if (p?.parents?.length) {
         stack.push(...p.parents);
       }
     }
@@ -101,7 +93,7 @@ function buildHiddenAncestorSet() {
   return hidden;
 }
 
-// ================== LAYOUT ==================
+/* ================== LAYOUT ================== */
 function layoutTree() {
   if (!treeRoot) return;
 
@@ -109,22 +101,21 @@ function layoutTree() {
   const visibleMembers = members.filter((m) => !hiddenAnc.has(m.id));
   if (!visibleMembers.length) return;
 
-  const levels = Array.from(
-    new Set(visibleMembers.map((m) => m.level))
-  ).sort((a, b) => a - b);
+  const levels = [...new Set(visibleMembers.map((m) => m.level))].sort(
+    (a, b) => a - b
+  );
 
   const paddingTop = 80;
   const rowGap = CARD_H + V_GAP;
   const containerWidth = treeRoot.clientWidth || 900;
-
   const newPosMap = new Map();
 
   levels.forEach((levelValue, rowIndex) => {
     const rowNodes = visibleMembers.filter((m) => m.level === levelValue);
     if (!rowNodes.length) return;
 
-    // Anchor: эцэг эхийн нь X-үүдийн дундаж
     let hasAnchor = false;
+
     rowNodes.forEach((m) => {
       let anchor = 0;
       const parentPosList = (m.parents || [])
@@ -132,19 +123,20 @@ function layoutTree() {
         .map((pid) => newPosMap.get(pid))
         .filter(Boolean);
 
-      if (parentPosList.length > 0) {
+      if (parentPosList.length) {
         anchor =
-          parentPosList.reduce((sum, p) => sum + p.x, 0) /
+          parentPosList.reduce((s, p) => s + p.x, 0) /
           parentPosList.length;
         hasAnchor = true;
       }
+
       m._anchor = anchor;
     });
 
-    // Эхнэр нөхрийн нэгж
     const used = new Set();
     const units = [];
 
+    // spouse буюу хосуудыг нэг блок болгоно
     rowNodes.forEach((m) => {
       if (used.has(m.id)) return;
 
@@ -157,6 +149,7 @@ function layoutTree() {
           return;
         }
       }
+
       units.push({ type: "single", ids: [m.id] });
       used.add(m.id);
     });
@@ -165,7 +158,6 @@ function layoutTree() {
     const UNIT_WIDTH = CARD_W * 2.2;
     const MIN_DIST = UNIT_WIDTH + H_GAP * 0.2;
 
-    // Anchor байхгүй бол зүгээр төвд нь тааруулна
     if (!hasAnchor) {
       const unitCount = units.length;
       const totalWidth =
@@ -177,12 +169,10 @@ function layoutTree() {
           startX + idx * (UNIT_WIDTH + H_GAP) + UNIT_WIDTH / 2;
 
         if (u.type === "single") {
-          const id = u.ids[0];
-          newPosMap.set(id, { x: centerX, y });
+          newPosMap.set(u.ids[0], { x: centerX, y });
         } else {
           const [id1, id2] = [...u.ids].sort((a, b) => a - b);
           const offset = CARD_W * 0.55;
-
           newPosMap.set(id1, { x: centerX - offset, y });
           newPosMap.set(id2, { x: centerX + offset, y });
         }
@@ -191,14 +181,14 @@ function layoutTree() {
       return;
     }
 
-    // Anchor-тай үед: эцэг эхийн доор тааруулах
+    // Anchor-т тулгуурласан байрлуулалт
     units.forEach((u) => {
       const anchors = u.ids.map((id) => {
         const mem = rowNodes.find((m) => m.id === id);
-        return mem ? mem._anchor || 0 : 0;
+        return mem?._anchor || 0;
       });
       let avg =
-        anchors.reduce((sum, a) => sum + a, 0) /
+        anchors.reduce((s, a) => s + a, 0) /
         Math.max(anchors.length, 1);
       if (!avg || !isFinite(avg)) avg = 0;
       u.anchor = avg;
@@ -210,16 +200,11 @@ function layoutTree() {
     units.forEach((u) => {
       let desired = u.anchor;
       if (!desired || !isFinite(desired)) {
-        desired =
-          currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
+        desired = currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
       }
 
-      let centerX;
-      if (currentX == null) {
-        centerX = desired || containerWidth / 2;
-      } else {
-        centerX = Math.max(desired, currentX + MIN_DIST);
-      }
+      let centerX =
+        currentX == null ? desired : Math.max(desired, currentX + MIN_DIST);
 
       u._centerX = centerX;
       currentX = centerX;
@@ -227,26 +212,23 @@ function layoutTree() {
 
     let minX = Math.min(...units.map((u) => u._centerX));
     let maxX = Math.max(...units.map((u) => u._centerX));
-    const margin = 40;
     let shift = 0;
 
     if (maxX - minX < containerWidth) {
       const usedWidth = maxX - minX;
       shift = (containerWidth - usedWidth) / 2 - minX;
-    } else if (minX < margin) {
-      shift = margin - minX;
+    } else if (minX < 40) {
+      shift = 40 - minX;
     }
 
     units.forEach((u) => {
       const cx = u._centerX + shift;
 
       if (u.type === "single") {
-        const id = u.ids[0];
-        newPosMap.set(id, { x: cx, y });
+        newPosMap.set(u.ids[0], { x: cx, y });
       } else {
         const [id1, id2] = [...u.ids].sort((a, b) => a - b);
         const offset = CARD_W * 0.55;
-
         newPosMap.set(id1, { x: cx - offset, y });
         newPosMap.set(id2, { x: cx + offset, y });
       }
@@ -268,15 +250,13 @@ function layoutTree() {
   treeRoot.style.height = Math.max(450, totalHeight) + "px";
 }
 
-// ================== RENDER ==================
+/* ================== RENDER ================== */
 function layoutVisibleMembers() {
   const hiddenAnc = buildHiddenAncestorSet();
   return members.filter((m) => !hiddenAnc.has(m.id));
 }
 
 function renderTree() {
-  if (!nodesLayer) return;
-
   nodesLayer.innerHTML = "";
 
   const visibleMembers = layoutVisibleMembers();
@@ -298,106 +278,71 @@ function resizeCanvas() {
   canvas.height = rect.height;
 }
 
-// ================== CARD COMPONENT ==================
+/* ================== CARD ================== */
 function createFamilyCard(member) {
   const card = document.createElement("div");
   card.className = "family-card";
+
   if (member.sex === "male") card.classList.add("male");
   else if (member.sex === "female") card.classList.add("female");
+
   if (member.collapseUp) card.classList.add("collapse-up");
 
-  // Up (collapse ancestors) button
+  /* Collapse button */
   const btnUp = document.createElement("button");
   btnUp.className = "node-btn node-btn-up";
-  btnUp.setAttribute("aria-label", "Дээш талын мөчир нугалах");
-  const tri = document.createElement("span");
-  tri.className = "triangle-up";
-  btnUp.appendChild(tri);
+  btnUp.innerHTML = `<span class="triangle-up"></span>`;
 
-  // Add menu button
+  /* Add-menu button */
   const btnAdd = document.createElement("button");
   btnAdd.className = "node-btn node-btn-add";
-  btnAdd.setAttribute("aria-label", "Шинэ хүн/харилцаа");
 
-  // Add menu
+  /* Menu */
   const menu = document.createElement("div");
   menu.className = "add-menu hidden";
 
-  const btnFather = document.createElement("button");
-  btnFather.className = "add-pill";
-  btnFather.textContent = "Эцэг нэмэх";
+  const btnFather = makeMenuBtn("Эцэг нэмэх");
+  const btnMother = makeMenuBtn("Эх нэмэх");
+  const btnSpouse = makeMenuBtn("Хань нэмэх");
+  const btnChild = makeMenuBtn("Хүүхэд нэмэх");
+  const btnEdit = makeMenuBtn("Мэдээлэл засах");
+  const btnDelete = makeMenuBtn("Устгах", true);
 
-  const btnMother = document.createElement("button");
-  btnMother.className = "add-pill";
-  btnMother.textContent = "Эх нэмэх";
+  menu.append(btnFather, btnMother, btnSpouse, btnChild, btnEdit, btnDelete);
 
-  const btnSpouse = document.createElement("button");
-  btnSpouse.className = "add-pill";
-  btnSpouse.textContent = "Хань нэмэх";
-
-  const btnChild = document.createElement("button");
-  btnChild.className = "add-pill";
-  btnChild.textContent = "Хүүхэд нэмэх";
-
-  const btnEdit = document.createElement("button");
-  btnEdit.className = "add-pill";
-  btnEdit.textContent = "Мэдээлэл засах";
-
-  const btnDelete = document.createElement("button");
-  btnDelete.className = "add-pill danger";
-  btnDelete.textContent = "Устгах";
-
-  menu.appendChild(btnFather);
-  menu.appendChild(btnMother);
-  menu.appendChild(btnSpouse);
-  menu.appendChild(btnChild);
-  menu.appendChild(btnEdit);
-  menu.appendChild(btnDelete);
-
-  // Avatar
+  /* Avatar */
   const avatarWrap = document.createElement("div");
   avatarWrap.className = "card-avatar";
+
   const avatarCircle = document.createElement("div");
   avatarCircle.className = "avatar-circle";
 
-  // Зураг байвал img, үгүй бол icon
-  if (member.photoUrl) {
-    const img = document.createElement("img");
-    img.src = member.photoUrl;
-    img.alt = member.name || "Профайл зураг";
-    img.className = "avatar-img";
-    avatarCircle.appendChild(img);
-  } else {
-    const avatarIcon = document.createElement("span");
-    avatarIcon.className = "avatar-icon";
-    avatarCircle.appendChild(avatarIcon);
-  }
+  const icon = document.createElement("span");
+  icon.className = "avatar-icon";
 
+  avatarCircle.appendChild(icon);
   avatarWrap.appendChild(avatarCircle);
 
-  // Name & age
+  /* Name & age */
   const nameBox = document.createElement("div");
   nameBox.className = "card-name";
+
   const full = document.createElement("div");
   full.className = "fullname";
-  full.textContent = member.name || "Нэр тодорхойгүй";
+  full.textContent = member.name || "Нэргүй";
+
   nameBox.appendChild(full);
 
   if (member.age) {
     const ageEl = document.createElement("div");
     ageEl.className = "card-age";
-    ageEl.textContent = member.age + " настай";
+    ageEl.textContent = `${member.age} настай`;
     nameBox.appendChild(ageEl);
   }
 
-  // Compose
-  card.appendChild(btnUp);
-  card.appendChild(btnAdd);
-  card.appendChild(menu);
-  card.appendChild(avatarWrap);
-  card.appendChild(nameBox);
+  card.append(btnUp, btnAdd, menu, avatarWrap, nameBox);
 
-  // card click → edit
+  /* EVENTS */
   card.addEventListener("click", (e) => {
     e.stopPropagation();
     openPersonModal("edit", member);
@@ -410,39 +355,25 @@ function createFamilyCard(member) {
 
   btnFather.addEventListener("click", (e) => {
     e.stopPropagation();
-    openPersonModal("add-father", member, {
-      sex: "male",
-      name: "Эцэг",
-      photoUrl: "img/profileman.avif", // чиний кодны аавын зураг
-    });
+    openPersonModal("add-father", member, { sex: "male", name: "Эцэг" });
     closeAllMenus();
   });
 
   btnMother.addEventListener("click", (e) => {
     e.stopPropagation();
-    openPersonModal("add-mother", member, {
-      sex: "female",
-      name: "Эх",
-      photoUrl: "img/profilewoman.jpg", // ээж
-    });
+    openPersonModal("add-mother", member, { sex: "female", name: "Эх" });
     closeAllMenus();
   });
 
   btnSpouse.addEventListener("click", (e) => {
     e.stopPropagation();
-    openPersonModal("add-spouse", member, {
-      name: "Хань",
-      photoUrl: "img/profilespouse.jpg", // хань
-    });
+    openPersonModal("add-spouse", member, { name: "Хань" });
     closeAllMenus();
   });
 
   btnChild.addEventListener("click", (e) => {
     e.stopPropagation();
-    openPersonModal("add-child", member, {
-      name: "Хүүхэд",
-      photoUrl: "img/profileson.jpg", // хүүхэд
-    });
+    openPersonModal("add-child", member, { name: "Хүүхэд" });
     closeAllMenus();
   });
 
@@ -456,44 +387,46 @@ function createFamilyCard(member) {
     e.stopPropagation();
     deletePerson(member);
     closeAllMenus();
+    updateTree();
   });
 
-  // fold ancestors
   btnUp.addEventListener("click", (e) => {
     e.stopPropagation();
     member.collapseUp = !member.collapseUp;
-    layoutTree();
-    renderTree();
+    updateTree();
   });
 
   return card;
 }
 
-// ================== MENU HELPERS ==================
+function makeMenuBtn(text, danger = false) {
+  const btn = document.createElement("button");
+  btn.className = "add-pill";
+  if (danger) btn.classList.add("danger");
+  btn.textContent = text;
+  return btn;
+}
+
+/* ================== MENU HELPERS ================== */
 function toggleMenu(menu) {
   closeAllMenus();
   menu.classList.toggle("hidden");
 }
 
 function closeAllMenus() {
-  document
-    .querySelectorAll(".add-menu")
-    .forEach((m) => m.classList.add("hidden"));
+  document.querySelectorAll(".add-menu").forEach((m) => m.classList.add("hidden"));
 }
 
+/* ================== MODAL ================== */
 function setupPersonModal() {
   const backdrop = document.getElementById("person-backdrop");
   const modal = document.getElementById("person-modal");
   const form = document.getElementById("person-form");
-  const btnCancel = document.getElementById("person-cancel");
+  const cancel = document.getElementById("person-cancel");
 
-  // Хэрвээ эдгээрээс аль нэг нь байхгүй бол modal-гүй хуудсан дээр байна гэж үзээд алдаа гаргалгүй return хийнэ
-  if (!backdrop || !modal || !form || !btnCancel) {
-    console.warn("Person modal elements not found, skipping modal setup");
-    return;
-  }
+  if (!backdrop || !modal) return;
 
-  btnCancel.addEventListener("click", closePersonModal);
+  cancel.addEventListener("click", closePersonModal);
   backdrop.addEventListener("click", closePersonModal);
 
   form.addEventListener("submit", (e) => {
@@ -502,42 +435,34 @@ function setupPersonModal() {
   });
 }
 
-
-function openPersonModal(mode, targetMember, preset = {}) {
+function openPersonModal(mode, target, preset = {}) {
   modalMode = mode;
-  modalTarget = targetMember;
+  modalTarget = target;
 
   const modal = document.getElementById("person-modal");
   const backdrop = document.getElementById("person-backdrop");
   const title = document.getElementById("person-modal-title");
-  const nameInput = document.getElementById("person-name");
-  const ageInput = document.getElementById("person-age");
-  const sexSelect = document.getElementById("person-sex");
-  const photoInput = document.getElementById("person-photo"); // string URL гэж үзэж байгаа
 
-  if (mode === "edit" && targetMember) {
+  const nameI = document.getElementById("person-name");
+  const ageI = document.getElementById("person-age");
+  const sexI = document.getElementById("person-sex");
+
+  if (mode === "edit") {
     title.textContent = "Хүн засах";
-    nameInput.value = targetMember.name || "";
-    ageInput.value = targetMember.age || "";
-    sexSelect.value = targetMember.sex || "";
-    if (photoInput) {
-      photoInput.value = targetMember.photoUrl || "";
-    }
+    nameI.value = target.name;
+    ageI.value = target.age;
+    sexI.value = target.sex;
   } else {
     title.textContent = "Хүн нэмэх";
-    nameInput.value = preset.name || "";
-    ageInput.value = "";
-    sexSelect.value = preset.sex || "";
-    if (photoInput) {
-      photoInput.value = preset.photoUrl || "";
-    }
+    nameI.value = preset.name || "";
+    ageI.value = "";
+    sexI.value = preset.sex || "";
   }
 
   backdrop.hidden = false;
   modal.hidden = false;
-  requestAnimationFrame(() => {
-    modal.classList.add("show");
-  });
+
+  requestAnimationFrame(() => modal.classList.add("show"));
 }
 
 function closePersonModal() {
@@ -552,75 +477,63 @@ function closePersonModal() {
 }
 
 function submitPersonForm() {
-  const nameInput = document.getElementById("person-name");
-  const ageInput = document.getElementById("person-age");
-  const sexSelect = document.getElementById("person-sex");
-  const photoInput = document.getElementById("person-photo");
+  const name = document.getElementById("person-name").value.trim();
+  const age = document.getElementById("person-age").value.trim();
+  const sex = document.getElementById("person-sex").value.trim();
 
-  const data = {
-    name: nameInput.value.trim(),
-    age: ageInput.value.trim(),
-    sex: sexSelect.value.trim(),
-    photoUrl: photoInput ? photoInput.value.trim() : "",
-  };
+  const data = { name, age, sex };
 
   switch (modalMode) {
     case "edit":
-      if (modalTarget) editPersonWithData(modalTarget, data);
+      editPersonWithData(modalTarget, data);
       break;
     case "add-father":
-      if (modalTarget) addFatherWithData(modalTarget, data);
+      addFatherWithData(modalTarget, data);
       break;
     case "add-mother":
-      if (modalTarget) addMotherWithData(modalTarget, data);
+      addMotherWithData(modalTarget, data);
       break;
     case "add-spouse":
-      if (modalTarget) addSpouseWithData(modalTarget, data);
+      addSpouseWithData(modalTarget, data);
       break;
     case "add-child":
-      if (modalTarget) addChildWithData(modalTarget, data);
+      addChildWithData(modalTarget, data);
       break;
   }
 
   closePersonModal();
-  layoutTree();
-  renderTree();
+  updateTree();
 }
 
-// ================== ADD / EDIT / DELETE ==================
-function normalizeSex(str) {
-  const s = (str || "").toLowerCase();
-  if (s === "male" || s === "эр" || s === "эрэгтэй") return "male";
-  if (s === "female" || s === "эм" || s === "эмэгтэй") return "female";
+/* ================== ADD / EDIT / DELETE ================== */
+function normalizeSex(s) {
+  s = (s || "").toLowerCase();
+  if (["male", "эр", "эрэгтэй"].includes(s)) return "male";
+  if (["female", "эм", "эмэгтэй"].includes(s)) return "female";
   return "";
 }
 
 function addFatherWithData(child, data) {
   if (child.parents[0]) {
-    alert("Эцэг аль хэдийн бүртгэлтэй байна.");
+    alert("Эцэг аль хэдийн байна.");
     return;
   }
 
-  const level = child.level - 1;
   const father = new FamilyMember({
     id: nextId++,
     name: data.name || "Эцэг",
     age: data.age,
     sex: "male",
-    level,
-    photoUrl: data.photoUrl || "img/profileman.avif",
+    level: child.level - 1
   });
 
   father.children.push(child.id);
   child.parents[0] = father.id;
 
-  // эх байвал хань болгож холбоно
   if (child.parents[1]) {
     const mother = findMember(child.parents[1]);
-    if (mother) {
-      father.spouseId = mother.id;
-      mother.spouseId = father.id;
-    }
+    father.spouseId = mother.id;
+    mother.spouseId = father.id;
   }
 
   members.push(father);
@@ -628,18 +541,16 @@ function addFatherWithData(child, data) {
 
 function addMotherWithData(child, data) {
   if (child.parents[1]) {
-    alert("Эх аль хэдийн бүртгэлтэй байна.");
+    alert("Эх аль хэдийн байна.");
     return;
   }
 
-  const level = child.level - 1;
   const mother = new FamilyMember({
     id: nextId++,
     name: data.name || "Эх",
     age: data.age,
     sex: "female",
-    level,
-    photoUrl: data.photoUrl || "img/profilewoman.jpg",
+    level: child.level - 1
   });
 
   mother.children.push(child.id);
@@ -647,10 +558,8 @@ function addMotherWithData(child, data) {
 
   if (child.parents[0]) {
     const father = findMember(child.parents[0]);
-    if (father) {
-      mother.spouseId = father.id;
-      father.spouseId = mother.id;
-    }
+    father.spouseId = mother.id;
+    mother.spouseId = father.id;
   }
 
   members.push(mother);
@@ -658,19 +567,20 @@ function addMotherWithData(child, data) {
 
 function addSpouseWithData(person, data) {
   if (person.spouseId) {
-    alert("Хань аль хэдийн бүртгэлтэй байна.");
+    alert("Хань аль хэдийн бүртгэлтэй.");
     return;
   }
 
-  const sex = normalizeSex(data.sex);
+  let spouseSex = "female";
+  if (person.sex === "female") spouseSex = "male";
+  if (person.sex === "") spouseSex = "female";
 
   const spouse = new FamilyMember({
     id: nextId++,
     name: data.name || "Хань",
     age: data.age,
-    sex,
-    level: person.level,
-    photoUrl: data.photoUrl || "img/profilespouse.jpg",
+    sex: spouseSex,
+    level: person.level
   });
 
   spouse.spouseId = person.id;
@@ -682,35 +592,26 @@ function addSpouseWithData(person, data) {
 function addChildWithData(parent, data) {
   const sex = normalizeSex(data.sex);
 
-  const level = parent.level + 1;
   const child = new FamilyMember({
     id: nextId++,
     name: data.name || "Хүүхэд",
     age: data.age,
     sex,
-    level,
-    photoUrl: data.photoUrl || "img/profileson.jpg",
+    level: parent.level + 1
   });
 
-  // parent → child
   parent.children.push(child.id);
 
-  if (parent.sex === "male") {
-    child.parents[0] = parent.id;
-  } else if (parent.sex === "female") {
-    child.parents[1] = parent.id;
-  } else {
-    child.parents.push(parent.id);
-  }
+  if (parent.sex === "male") child.parents[0] = parent.id;
+  else if (parent.sex === "female") child.parents[1] = parent.id;
+  else child.parents.push(parent.id);
 
   if (parent.spouseId) {
-    const spouse = findMember(parent.spouseId);
-    if (spouse) {
-      spouse.children.push(child.id);
-      if (spouse.sex === "male") child.parents[0] = spouse.id;
-      else if (spouse.sex === "female") child.parents[1] = spouse.id;
-      else if (!child.parents.includes(spouse.id)) child.parents.push(spouse.id);
-    }
+    const s = findMember(parent.spouseId);
+    s.children.push(child.id);
+
+    if (s.sex === "male") child.parents[0] = s.id;
+    else if (s.sex === "female") child.parents[1] = s.id;
   }
 
   members.push(child);
@@ -720,18 +621,14 @@ function editPersonWithData(member, data) {
   member.name = data.name || member.name;
   member.age = data.age || "";
   member.sex = normalizeSex(data.sex);
-
-  // photoUrl ирсэн бол шинэчилнэ
-  if (typeof data.photoUrl !== "undefined" && data.photoUrl !== "") {
-    member.photoUrl = data.photoUrl;
-  }
 }
 
 function deletePerson(member) {
-  if (member.level === 0 && members.length === 1) {
-    alert("Үндсэн 'Би' node-ийг устгах боломжгүй.");
+  if (member.level === 0) {
+    alert("'Би' node-ийг устгаж болохгүй.");
     return;
   }
+
   if (!confirm("Энэ хүнийг устгах уу?")) return;
 
   const id = member.id;
@@ -745,19 +642,17 @@ function deletePerson(member) {
   members = members.filter((m) => m.id !== id);
 }
 
-// ================== THEME BUTTON ==================
+/* ================== THEME ================== */
 function setupThemeButton() {
-  const btnTheme = document.getElementById("btn-theme");
-  if (!btnTheme) return;
-  btnTheme.addEventListener("click", (e) => {
-    e.stopPropagation();
+  const btn = document.getElementById("btn-theme");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
     document.body.classList.toggle("dark");
   });
 }
 
-// ================== DRAW LINES ==================
+/* ================== DRAW LINES ================== */
 function drawLines(visibleMembers) {
-  if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   ctx.strokeStyle = "#8a6a4a";
@@ -766,40 +661,35 @@ function drawLines(visibleMembers) {
 
   const visibleIds = new Set(visibleMembers.map((m) => m.id));
 
-  // 1. Spouse lines
+  /* ----- Spouse lines ----- */
   visibleMembers.forEach((m) => {
-    if (!m.spouseId) return;
-    if (!visibleIds.has(m.spouseId)) return;
+    if (!m.spouseId || !visibleIds.has(m.spouseId)) return;
 
-    const spouse = findMember(m.spouseId);
-    if (!spouse) return;
-    if (m.id > spouse.id) return;
+    const s = findMember(m.spouseId);
+    if (!s || m.id > s.id) return;
 
     const p1 = posMap.get(m.id);
-    const p2 = posMap.get(spouse.id);
+    const p2 = posMap.get(s.id);
     if (!p1 || !p2) return;
 
-    const y = p1.y;
-
     ctx.beginPath();
-    ctx.moveTo(p1.x + CARD_W * 0.3, y);
-    ctx.lineTo(p2.x - CARD_W * 0.3, y);
+    ctx.moveTo(p1.x + CARD_W * 0.3, p1.y);
+    ctx.lineTo(p2.x - CARD_W * 0.3, p1.y);
     ctx.stroke();
   });
 
-  // 2. Хоёр эцэг эх + олон хүүхэд
+  /* ===== TWO PARENTS + multiple children ===== */
   const pairMap = new Map();
 
   visibleMembers.forEach((child) => {
-    const parentsArr = (child.parents || []).filter((id) =>
+    const parents = (child.parents || []).filter((id) =>
       visibleIds.has(id)
     );
-    if (parentsArr.length < 2) return;
+    if (parents.length < 2) return;
 
-    const [a, b] = parentsArr;
-    const p1 = Math.min(a, b);
-    const p2 = Math.max(a, b);
-    const key = p1 + "-" + p2;
+    const p1 = Math.min(...parents);
+    const p2 = Math.max(...parents);
+    const key = `${p1}-${p2}`;
 
     if (!pairMap.has(key)) {
       pairMap.set(key, { parents: [p1, p2], children: [] });
@@ -809,9 +699,9 @@ function drawLines(visibleMembers) {
 
   pairMap.forEach((group) => {
     const [p1id, p2id] = group.parents;
-    const parent1Pos = posMap.get(p1id);
-    const parent2Pos = posMap.get(p2id);
-    if (!parent1Pos || !parent2Pos) return;
+    const p1 = posMap.get(p1id);
+    const p2 = posMap.get(p2id);
+    if (!p1 || !p2) return;
 
     const childrenPos = group.children
       .map((id) => posMap.get(id))
@@ -819,34 +709,37 @@ function drawLines(visibleMembers) {
 
     if (!childrenPos.length) return;
 
-    const parentBottomY = parent1Pos.y + CARD_H / 2;
+    const parentBottomY = p1.y + CARD_H / 2;
     const childTopY = childrenPos[0].y - CARD_H / 2;
 
-    const midParentX = (parent1Pos.x + parent2Pos.x) / 2;
+    const midParentX = (p1.x + p2.x) / 2;
+    const barY = parentBottomY + 16;
 
-    const parentsBarY = parentBottomY + 16;
-
-    const minChildX = Math.min(...childrenPos.map((c) => c.x));
-    const maxChildX = Math.max(...childrenPos.map((c) => c.x));
+    const minX = Math.min(...childrenPos.map((c) => c.x));
+    const maxX = Math.max(...childrenPos.map((c) => c.x));
     const siblingY = childTopY - 20;
 
     ctx.beginPath();
 
-    ctx.moveTo(parent1Pos.x, parentBottomY);
-    ctx.lineTo(parent1Pos.x, parentsBarY);
+    // parent bars
+    ctx.moveTo(p1.x, parentBottomY);
+    ctx.lineTo(p1.x, barY);
 
-    ctx.moveTo(parent2Pos.x, parentBottomY);
-    ctx.lineTo(parent2Pos.x, parentsBarY);
+    ctx.moveTo(p2.x, parentBottomY);
+    ctx.lineTo(p2.x, barY);
 
-    ctx.moveTo(parent1Pos.x, parentsBarY);
-    ctx.lineTo(parent2Pos.x, parentsBarY);
+    ctx.moveTo(p1.x, barY);
+    ctx.lineTo(p2.x, barY);
 
-    ctx.moveTo(midParentX, parentsBarY);
+    // down to children bar
+    ctx.moveTo(midParentX, barY);
     ctx.lineTo(midParentX, siblingY);
 
-    ctx.moveTo(minChildX, siblingY);
-    ctx.lineTo(maxChildX, siblingY);
+    // horizontal children bar
+    ctx.moveTo(minX, siblingY);
+    ctx.lineTo(maxX, siblingY);
 
+    // vertical child lines
     childrenPos.forEach((pos) => {
       ctx.moveTo(pos.x, siblingY);
       ctx.lineTo(pos.x, childTopY);
@@ -855,16 +748,17 @@ function drawLines(visibleMembers) {
     ctx.stroke();
   });
 
-  // 3. Ганц эцэг/эхтэй хүүхэд
+  /* ===== ONE PARENT ===== */
   visibleMembers.forEach((child) => {
-    const parentsArr = (child.parents || []).filter((id) =>
+    const parents = (child.parents || []).filter((id) =>
       visibleIds.has(id)
     );
-    if (parentsArr.length !== 1) return;
+    if (parents.length !== 1) return;
 
-    const parentId = parentsArr[0];
-    const p = posMap.get(parentId);
+    const pid = parents[0];
+    const p = posMap.get(pid);
     const c = posMap.get(child.id);
+
     if (!p || !c) return;
 
     const parentBottom = p.y + CARD_H / 2;
@@ -878,4 +772,10 @@ function drawLines(visibleMembers) {
     ctx.lineTo(c.x, childTop);
     ctx.stroke();
   });
+}
+
+/* ================== FINAL: updateTree() ================== */
+function updateTree() {
+  layoutTree();
+  renderTree();
 }
