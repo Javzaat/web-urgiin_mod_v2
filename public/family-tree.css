@@ -258,14 +258,6 @@ body.dark .family-card {
   border: 2px solid #5c4033;
   position: relative;
 }
-.avatar-icon {
-  display: block;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid #5c4033;
-  position: relative;
-}
 .avatar-icon::before {
   content: "";
   position: absolute;
