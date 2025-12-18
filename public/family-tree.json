@@ -6,7 +6,7 @@
       "age": "20",
       "sex": "male",
       "level": 0,
-      "x": 1283,
+      "x": 1625.5,
       "y": 830,
       "parents": [
         2,
@@ -15,8 +15,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profileson.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 941
+      "_anchor": 941.5
     },
     {
       "id": 2,
@@ -24,7 +35,7 @@
       "age": "48",
       "sex": "male",
       "level": -1,
-      "x": 858.5,
+      "x": 859,
       "y": 580,
       "parents": [
         4,
@@ -36,8 +47,19 @@
       ],
       "spouseId": 3,
       "photoUrl": "img/profileman.avif",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 770
+      "_anchor": 770.5
     },
     {
       "id": 3,
@@ -45,7 +67,7 @@
       "age": "48",
       "sex": "female",
       "level": -1,
-      "x": 1023.5,
+      "x": 1024,
       "y": 580,
       "parents": [
         5
@@ -56,8 +78,19 @@
       ],
       "spouseId": 2,
       "photoUrl": "img/profilewoman.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 428
+      "_anchor": 428.5
     },
     {
       "id": 4,
@@ -65,7 +98,7 @@
       "age": "77",
       "sex": "male",
       "level": -2,
-      "x": 687.5,
+      "x": 688,
       "y": 330,
       "parents": [
         13
@@ -77,8 +110,19 @@
       ],
       "spouseId": 7,
       "photoUrl": "img/profileman.avif",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 404
+      "_anchor": 404.5
     },
     {
       "id": 5,
@@ -86,7 +130,7 @@
       "age": "70",
       "sex": "female",
       "level": -2,
-      "x": 428,
+      "x": 428.5,
       "y": 330,
       "parents": [],
       "children": [
@@ -94,7 +138,18 @@
       ],
       "spouseId": null,
       "photoUrl": "img/profilewoman.jpg",
-      "collapseUp": false,
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
+      "collapseUp": true,
       "_anchor": 0
     },
     {
@@ -103,7 +158,7 @@
       "age": "65",
       "sex": "female",
       "level": -2,
-      "x": 852.5,
+      "x": 853,
       "y": 330,
       "parents": [
         15
@@ -115,8 +170,19 @@
       ],
       "spouseId": 4,
       "photoUrl": "img/profilewoman.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 794
+      "_anchor": 794.5
     },
     {
       "id": 8,
@@ -124,7 +190,7 @@
       "age": "22",
       "sex": "female",
       "level": 0,
-      "x": 1625,
+      "x": 1967.5,
       "y": 830,
       "parents": [
         2,
@@ -133,8 +199,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profilespouse.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 941
+      "_anchor": 941.5
     },
     {
       "id": 9,
@@ -142,7 +219,7 @@
       "age": "",
       "sex": "male",
       "level": -1,
-      "x": 174.5,
+      "x": 175,
       "y": 580,
       "parents": [
         4,
@@ -154,8 +231,19 @@
       ],
       "spouseId": 10,
       "photoUrl": "img/profileson.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 770
+      "_anchor": 770.5
     },
     {
       "id": 10,
@@ -163,7 +251,7 @@
       "age": "28",
       "sex": "female",
       "level": -1,
-      "x": 339.5,
+      "x": 340,
       "y": 580,
       "parents": [],
       "children": [
@@ -172,6 +260,17 @@
       ],
       "spouseId": 9,
       "photoUrl": "img/profilespouse.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
       "_anchor": 0
     },
@@ -181,7 +280,7 @@
       "age": "2",
       "sex": "male",
       "level": 0,
-      "x": 257,
+      "x": 257.5,
       "y": 830,
       "parents": [
         9,
@@ -190,8 +289,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profileson.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 257
+      "_anchor": 257.5
     },
     {
       "id": 12,
@@ -199,7 +309,7 @@
       "age": "",
       "sex": "female",
       "level": 0,
-      "x": 599,
+      "x": 599.5,
       "y": 830,
       "parents": [
         9,
@@ -208,8 +318,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profilespouse.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 257
+      "_anchor": 257.5
     },
     {
       "id": 13,
@@ -217,7 +338,7 @@
       "age": "",
       "sex": "male",
       "level": -3,
-      "x": 404,
+      "x": 404.5,
       "y": 80,
       "parents": [],
       "children": [
@@ -225,6 +346,19 @@
       ],
       "spouseId": null,
       "photoUrl": "img/profileman.avif",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "2003-03-09",
+      "deathDate": "",
+      "birthPlace": "Баян-Өлгий, Алтанцөгц",
+      "major": "",
+      "education": "Бакалавр",
+      "position": "оюутан",
+      "achievements": [
+        "шилдэг төгсөгч"
+      ],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
       "_anchor": 0
     },
@@ -234,7 +368,7 @@
       "age": "",
       "sex": "male",
       "level": -3,
-      "x": 794,
+      "x": 794.5,
       "y": 80,
       "parents": [],
       "children": [
@@ -242,6 +376,17 @@
       ],
       "spouseId": null,
       "photoUrl": "img/profileman.avif",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
       "_anchor": 0
     },
@@ -251,7 +396,7 @@
       "age": "46",
       "sex": "male",
       "level": -1,
-      "x": 516.5,
+      "x": 517,
       "y": 580,
       "parents": [
         4,
@@ -263,8 +408,19 @@
       ],
       "spouseId": 17,
       "photoUrl": "img/profileson.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 770
+      "_anchor": 770.5
     },
     {
       "id": 17,
@@ -272,7 +428,7 @@
       "age": "45",
       "sex": "female",
       "level": -1,
-      "x": 681.5,
+      "x": 682,
       "y": 580,
       "parents": [],
       "children": [
@@ -281,6 +437,17 @@
       ],
       "spouseId": 16,
       "photoUrl": "img/profilespouse.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
       "_anchor": 0
     },
@@ -290,7 +457,7 @@
       "age": "20",
       "sex": "female",
       "level": 0,
-      "x": 941,
+      "x": 941.5,
       "y": 830,
       "parents": [
         16,
@@ -299,8 +466,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profilespouse.jpg",
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
       "collapseUp": false,
-      "_anchor": 599
+      "_anchor": 599.5
     },
     {
       "id": 19,
@@ -308,8 +486,8 @@
       "age": "10",
       "sex": "male",
       "level": 0,
-      "x": 0,
-      "y": 0,
+      "x": 1283.5,
+      "y": 830,
       "parents": [
         16,
         17
@@ -317,7 +495,19 @@
       "children": [],
       "spouseId": null,
       "photoUrl": "img/profileson.jpg",
-      "collapseUp": false
+      "familyName": "",
+      "fatherName": "",
+      "birthDate": "",
+      "deathDate": "",
+      "birthPlace": "",
+      "major": "",
+      "education": "",
+      "position": "",
+      "achievements": [],
+      "images": [],
+      "videos": [],
+      "collapseUp": false,
+      "_anchor": 599.5
     }
   ]
 }

@@ -5,30 +5,54 @@ const V_GAP = 60;
 
 // ================== DATA MODEL ==================
 class FamilyMember {
-  constructor({ id, name, age, sex, level, photoUrl }) {
+  constructor({ 
+    id, name, age, sex, level, photoUrl,
+
+    // NEW (optional)
+    familyName,
+    fatherName,
+    birthDate,
+    deathDate,
+    birthPlace,
+    major,
+    education,
+    position,
+    achievements,
+    images,
+    videos
+  }) {
     this.id = id;
     this.name = name || "";
     this.age = age || "";
-    this.sex = sex || ""; // "male" | "female" | ""
+    this.sex = sex || "";
+    this.level = level;
 
-    this.level = level;   // үе: 0 = root, -1 = эцэг эх, 1 = хүүхэд...
-
-    // байрлал
     this.x = 0;
     this.y = 0;
 
-    // харилцаа
-    this.parents = [];    // [эцэгId?, эхId?]
-    this.children = [];   // [id, ...]
-    this.spouseId = null; // 1 хань
+    this.parents = [];
+    this.children = [];
+    this.spouseId = null;
 
-    // профайл зураг (URL эсвэл файлын нэр)
-    this.photoUrl = photoUrl || ""; // хоосон бол дараа нь default-уудыг ашиглана
+    this.photoUrl = photoUrl || "";
 
-    // дээш талын мөчир нугалах тэмдэг (ancestors collapse)
+    // 👇 NEW FIELDS
+    this.familyName = familyName || "";
+    this.fatherName = fatherName || "";
+    this.birthDate = birthDate || "";
+    this.deathDate = deathDate || "";
+    this.birthPlace = birthPlace || "";
+    this.major = major || "";
+    this.education = education || "";
+    this.position = position || "";
+    this.achievements = achievements || [];
+    this.images = images || [];
+    this.videos = videos || [];
+
     this.collapseUp = false;
   }
 }
+
 
 let members = [];
 let nextId = 1;
@@ -360,7 +384,9 @@ function createFamilyCard(member) {
   else if (member.sex === "female") card.classList.add("female");
   if (member.collapseUp) card.classList.add("collapse-up");
 
-  // Up (collapse ancestors) button
+  /* ================= BUTTONS ================= */
+
+  // Collapse up
   const btnUp = document.createElement("button");
   btnUp.className = "node-btn node-btn-up";
   btnUp.setAttribute("aria-label", "Дээш талын мөчир нугалах");
@@ -368,53 +394,49 @@ function createFamilyCard(member) {
   tri.className = "triangle-up";
   btnUp.appendChild(tri);
 
-  // Add menu button
+  // Add (+)
   const btnAdd = document.createElement("button");
   btnAdd.className = "node-btn node-btn-add";
   btnAdd.setAttribute("aria-label", "Шинэ хүн/харилцаа");
 
-  // Add menu
+  /* ================= ADD MENU ================= */
+
   const menu = document.createElement("div");
   menu.className = "add-menu hidden";
 
-  const btnFather = document.createElement("button");
-  btnFather.className = "add-pill";
-  btnFather.textContent = "Эцэг нэмэх";
+  const makeBtn = (text, cls = "add-pill") => {
+    const b = document.createElement("button");
+    b.className = cls;
+    b.textContent = text;
+    return b;
+  };
 
-  const btnMother = document.createElement("button");
-  btnMother.className = "add-pill";
-  btnMother.textContent = "Эх нэмэх";
+  const btnFather = makeBtn("Эцэг нэмэх");
+  const btnMother = makeBtn("Эх нэмэх");
+  const btnSpouse = makeBtn("Хань нэмэх");
+  const btnChild  = makeBtn("Хүүхэд нэмэх");
+  const btnDetail = makeBtn("Дэлгэрэнгүй мэдээлэл");
+  const btnEdit   = makeBtn("Мэдээлэл засах");
+  const btnDelete = makeBtn("Устгах", "add-pill danger");
 
-  const btnSpouse = document.createElement("button");
-  btnSpouse.className = "add-pill";
-  btnSpouse.textContent = "Хань нэмэх";
+  menu.append(
+    btnFather,
+    btnMother,
+    btnSpouse,
+    btnChild,
+    btnDetail,
+    btnEdit,
+    btnDelete
+  );
 
-  const btnChild = document.createElement("button");
-  btnChild.className = "add-pill";
-  btnChild.textContent = "Хүүхэд нэмэх";
+  /* ================= AVATAR ================= */
 
-  const btnEdit = document.createElement("button");
-  btnEdit.className = "add-pill";
-  btnEdit.textContent = "Мэдээлэл засах";
-
-  const btnDelete = document.createElement("button");
-  btnDelete.className = "add-pill danger";
-  btnDelete.textContent = "Устгах";
-
-  menu.appendChild(btnFather);
-  menu.appendChild(btnMother);
-  menu.appendChild(btnSpouse);
-  menu.appendChild(btnChild);
-  menu.appendChild(btnEdit);
-  menu.appendChild(btnDelete);
-
-  // Avatar
   const avatarWrap = document.createElement("div");
   avatarWrap.className = "card-avatar";
+
   const avatarCircle = document.createElement("div");
   avatarCircle.className = "avatar-circle";
 
-  // Зураг байвал img, үгүй бол icon
   if (member.photoUrl) {
     const img = document.createElement("img");
     img.src = member.photoUrl;
@@ -422,16 +444,18 @@ function createFamilyCard(member) {
     img.className = "avatar-img";
     avatarCircle.appendChild(img);
   } else {
-    const avatarIcon = document.createElement("span");
-    avatarIcon.className = "avatar-icon";
-    avatarCircle.appendChild(avatarIcon);
+    const icon = document.createElement("span");
+    icon.className = "avatar-icon";
+    avatarCircle.appendChild(icon);
   }
 
   avatarWrap.appendChild(avatarCircle);
 
-  // Name & age
+  /* ================= NAME / AGE ================= */
+
   const nameBox = document.createElement("div");
   nameBox.className = "card-name";
+
   const full = document.createElement("div");
   full.className = "fullname";
   full.textContent = member.name || "Нэр тодорхойгүй";
@@ -444,81 +468,126 @@ function createFamilyCard(member) {
     nameBox.appendChild(ageEl);
   }
 
-  // Compose
-  card.appendChild(btnUp);
-  card.appendChild(btnAdd);
-  card.appendChild(menu);
-  card.appendChild(avatarWrap);
-  card.appendChild(nameBox);
+  /* ================= COMPOSE ================= */
 
-  // card click → edit
+  card.append(
+    btnUp,
+    btnAdd,
+    menu,
+    avatarWrap,
+    nameBox
+  );
+
+  /* ================= CLICK LOGIC ================= */
+
+  let clickTimer = null;
+
+  // SINGLE CLICK → edit (delay)
   card.addEventListener("click", (e) => {
     e.stopPropagation();
-    openPersonModal("edit", member);
+    if (clickTimer) clearTimeout(clickTimer);
+
+    clickTimer = setTimeout(() => {
+      openPersonModal("edit", member);
+      clickTimer = null;
+    }, 280);
   });
+
+  // DOUBLE CLICK → profile
+  card.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+    }
+    openProfileView(member);
+  });
+
+  // MOBILE DOUBLE TAP → profile
+  let lastTap = 0;
+  card.addEventListener("touchend", () => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
+      openProfileView(member);
+    }
+    lastTap = now;
+  });
+
+  /* ================= MENU ACTIONS ================= */
 
   btnAdd.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleMenu(menu);
   });
 
-  btnFather.addEventListener("click", (e) => {
+  btnFather.onclick = (e) => {
     e.stopPropagation();
     openPersonModal("add-father", member, {
       sex: "male",
       name: "Эцэг",
-      photoUrl: "img/profileman.avif", // чиний кодны аавын зураг
+      photoUrl: "img/profileman.avif",
     });
     closeAllMenus();
-  });
+  };
 
-  btnMother.addEventListener("click", (e) => {
+  btnMother.onclick = (e) => {
     e.stopPropagation();
     openPersonModal("add-mother", member, {
       sex: "female",
       name: "Эх",
-      photoUrl: "img/profilewoman.jpg", // ээж
+      photoUrl: "img/profilewoman.jpg",
     });
     closeAllMenus();
-  });
+  };
 
-  btnSpouse.addEventListener("click", (e) => {
+  btnSpouse.onclick = (e) => {
     e.stopPropagation();
     openPersonModal("add-spouse", member, {
       name: "Хань",
-      photoUrl: "img/profilespouse.jpg", // хань
+      photoUrl: "img/profilespouse.jpg",
     });
     closeAllMenus();
-  });
+  };
 
-  btnChild.addEventListener("click", (e) => {
+  btnChild.onclick = (e) => {
     e.stopPropagation();
     openPersonModal("add-child", member, {
       name: "Хүүхэд",
-      photoUrl: "img/profileson.jpg", // хүүхэд
+      photoUrl: "img/profileson.jpg",
     });
     closeAllMenus();
-  });
+  };
 
-  btnEdit.addEventListener("click", (e) => {
+  btnDetail.onclick = (e) => {
+    e.stopPropagation();
+    openProfileView(member);
+    closeAllMenus();
+  };
+
+  btnEdit.onclick = (e) => {
     e.stopPropagation();
     openPersonModal("edit", member);
     closeAllMenus();
-  });
+  };
 
-  btnDelete.addEventListener("click", (e) => {
+  btnDelete.onclick = (e) => {
     e.stopPropagation();
     deletePerson(member);
     closeAllMenus();
-  });
+  };
 
-  // fold ancestors
+  /* ================= COLLAPSE ================= */
+
   btnUp.addEventListener("click", (e) => {
     e.stopPropagation();
     member.collapseUp = !member.collapseUp;
     layoutTree();
     renderTree();
-    saveTreeToJson(); // нугалсан төлөвийг хадгална
+    saveTreeToJson();
   });
 
   return card;
@@ -939,3 +1008,316 @@ function drawLines(visibleMembers) {
     ctx.stroke();
   });
 }
+// ================== PROFILE VIEW ==================
+
+function openProfileView(member) {
+  currentProfileMember = member; 
+  const backdrop = document.getElementById("profile-backdrop");
+  const view = document.getElementById("profile-view");
+
+  if (!view || !backdrop) {
+    console.warn("Profile view elements not found");
+    return;
+  }
+
+  // helper: хоосон string → —
+  const v = (x) => (x && String(x).trim() ? x : "—");
+
+  const imgEl = document.getElementById("profile-img");
+  const nameEl = document.getElementById("profile-name");
+  const familyEl = document.getElementById("profile-family");
+  const sexEl = document.getElementById("profile-sex");
+  const birthEl = document.getElementById("profile-birth");
+  const deathEl = document.getElementById("profile-death");
+  const placeEl = document.getElementById("profile-place");
+  const eduEl = document.getElementById("profile-education");
+  const posEl = document.getElementById("profile-position");
+  const listEl = document.getElementById("profile-achievements");
+
+  // image
+  if (imgEl) {
+    imgEl.src = member.photoUrl || "img/profileson.jpg";
+    imgEl.alt = member.name || "Profile";
+  }
+
+  // name
+  if (nameEl) {
+    nameEl.textContent = member.name || "Нэргүй";
+  }
+
+  // family / father name
+  if (familyEl) {
+    const fam = [member.familyName, member.fatherName]
+      .filter((x) => x && x.trim())
+      .join(" ");
+    familyEl.textContent = fam || "—";
+  }
+
+  // sex
+  if (sexEl) {
+    sexEl.textContent =
+      "Хүйс: " +
+      (member.sex === "male"
+        ? "Эр"
+        : member.sex === "female"
+        ? "Эм"
+        : "—");
+  }
+
+  // dates & place
+  if (birthEl) birthEl.textContent = "Төрсөн: " + v(member.birthDate);
+  if (deathEl) deathEl.textContent = "Нас барсан: " + v(member.deathDate);
+  if (placeEl) placeEl.textContent = "Төрсөн газар: " + v(member.birthPlace);
+
+  // education / position
+  if (eduEl) eduEl.textContent = v(member.education);
+  if (posEl) posEl.textContent = v(member.position);
+
+  // achievements
+  if (listEl) {
+    listEl.innerHTML = "";
+    if (Array.isArray(member.achievements) && member.achievements.length) {
+      member.achievements.forEach((a) => {
+        const li = document.createElement("li");
+        li.textContent = a;
+        listEl.appendChild(li);
+      });
+    } else {
+      const li = document.createElement("li");
+      li.textContent = "—";
+      listEl.appendChild(li);
+    }
+  }
+
+  // show
+  backdrop.hidden = false;
+  view.hidden = false;
+}
+
+function closeProfileView() {
+  const view = document.getElementById("profile-view");
+  const backdrop = document.getElementById("profile-backdrop");
+
+  if (view) view.hidden = true;
+  if (backdrop) backdrop.hidden = true;
+}
+
+// close handlers (safe)
+document.getElementById("profile-close")?.addEventListener(
+  "click",
+  closeProfileView
+);
+
+document.getElementById("profile-backdrop")?.addEventListener(
+  "click",
+  closeProfileView
+);
+let currentProfileMember = null;
+
+
+
+function closeProfileEdit() {
+  document.getElementById("profile-edit-backdrop").hidden = true;
+  document.getElementById("profile-edit").hidden = true;
+}
+
+document.getElementById("profile-edit-close")
+  ?.addEventListener("click", closeProfileEdit);
+
+document.getElementById("profile-edit-backdrop")
+  ?.addEventListener("click", closeProfileEdit);
+
+document.getElementById("profile-edit-save")
+  ?.addEventListener("click", () => {
+    if (!currentProfileMember) return;
+
+    currentProfileMember.familyName =
+      document.getElementById("edit-familyName").value.trim();
+
+    currentProfileMember.fatherName =
+      document.getElementById("edit-fatherName").value.trim();
+
+    currentProfileMember.birthDate =
+      document.getElementById("edit-birthDate").value;
+
+    currentProfileMember.deathDate =
+      document.getElementById("edit-deathDate").value;
+
+    currentProfileMember.education =
+      document.getElementById("edit-education").value.trim();
+
+    currentProfileMember.position =
+      document.getElementById("edit-position").value.trim();
+
+    currentProfileMember.achievements =
+      document.getElementById("edit-achievements")
+        .value
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+    // 🔽 🔽 🔽 ЭНД birthPlace LOGIC-ОО ОРУУЛНА 🔽 🔽 🔽
+    const country = document.getElementById("edit-country")?.value;
+    const province = document.getElementById("edit-province")?.value;
+    const soum = document.getElementById("edit-soum")?.value;
+    const foreign = document.getElementById("edit-foreign-place")?.value;
+
+    if (country === "MN") {
+      currentProfileMember.birthPlace =
+        [province, soum].filter(Boolean).join(", ");
+    } else if (country === "OTHER") {
+      currentProfileMember.birthPlace = foreign?.trim() || "";
+    }
+
+    // 🔼 🔼 🔼 ЭНД ДУУСНА 🔼 🔼 🔼
+
+    saveTreeToJson();
+    openProfileView(currentProfileMember);
+    closeProfileEdit();
+  });
+
+// ================== PROFILE EDIT BUTTON ==================
+document.getElementById("profile-edit-btn")
+  ?.addEventListener("click", () => {
+    if (currentProfileMember) {
+      openProfileEdit(currentProfileMember);
+    }
+  });
+
+// ================== BIRTH PLACE LOGIC (STEP 1) ==================
+
+
+// ================== BIRTH PLACE DROPDOWN LOGIC ==================
+const countrySelect  = document.getElementById("edit-country");
+const provinceSelect = document.getElementById("edit-province");
+const soumSelect     = document.getElementById("edit-soum");
+const foreignInput   = document.getElementById("edit-foreign-place");
+const mongoliaBlock  = document.getElementById("mongolia-fields");
+const foreignBlock   = document.getElementById("foreign-fields");
+
+if (countrySelect) {
+  countrySelect.addEventListener("change", () => {
+    const val = countrySelect.value;
+
+    // === Монгол ===
+    if (val === "MN") {
+      mongoliaBlock.hidden = false;
+      foreignBlock.hidden  = true;
+
+      provinceSelect.disabled = false;
+      soumSelect.disabled = false;
+
+      // Аймгуудыг бөглөх
+      provinceSelect.innerHTML =
+        `<option value="">— Сонгох —</option>` +
+        Object.keys(window.MONGOLIA)
+          .map(p => `<option value="${p}">${p}</option>`)
+          .join("");
+
+      soumSelect.innerHTML = `<option value="">— Сонгох —</option>`;
+    }
+
+    // === Гадаад улс ===
+    else if (val === "OTHER") {
+      mongoliaBlock.hidden = true;
+      foreignBlock.hidden  = false;
+
+      provinceSelect.value = "";
+      soumSelect.value = "";
+    }
+
+    // === Сонгоогүй ===
+    else {
+      mongoliaBlock.hidden = true;
+      foreignBlock.hidden  = true;
+    }
+  });
+}
+
+// Аймаг → Сум
+provinceSelect?.addEventListener("change", () => {
+  const province = provinceSelect.value;
+  const soums = window.MONGOLIA[province] || [];
+
+  soumSelect.innerHTML =
+    `<option value="">— Сонгох —</option>` +
+    soums.map(s => `<option value="${s}">${s}</option>`).join("");
+});
+
+function syncBirthPlaceUI(member) {
+  const countrySelect  = document.getElementById("edit-country");
+  const provinceSelect = document.getElementById("edit-province");
+  const soumSelect     = document.getElementById("edit-soum");
+  const foreignInput   = document.getElementById("edit-foreign-place");
+  const mongoliaBlock  = document.getElementById("mongolia-fields");
+  const foreignBlock   = document.getElementById("foreign-fields");
+
+  if (!countrySelect) return;
+
+  // RESET
+  mongoliaBlock.hidden = true;
+  foreignBlock.hidden  = true;
+
+  provinceSelect.disabled = true;
+  soumSelect.disabled = true;
+
+  // === Монгол ===
+  if (member.birthPlace) {
+    const parts = member.birthPlace.split(",").map(x => x.trim());
+
+    if (parts.length >= 1 && window.MONGOLIA[parts[0]]) {
+      countrySelect.value = "MN";
+      mongoliaBlock.hidden = false;
+
+      provinceSelect.disabled = false;
+      soumSelect.disabled = false;
+
+      // Аймаг
+      provinceSelect.innerHTML =
+        `<option value="">— Сонгох —</option>` +
+        Object.keys(window.MONGOLIA)
+          .map(p => `<option value="${p}">${p}</option>`)
+          .join("");
+
+      provinceSelect.value = parts[0];
+
+      // 🔥 CHANGE EVENT ГАРГАХ
+      provinceSelect.dispatchEvent(new Event("change"));
+
+      // Сум
+      if (parts[1]) {
+        soumSelect.value = parts[1];
+      }
+      return;
+    }
+  }
+
+  // === Гадаад ===
+  if (member.birthPlace) {
+    countrySelect.value = "OTHER";
+    foreignBlock.hidden = false;
+    foreignInput.value = member.birthPlace;
+  }
+}
+
+
+function openProfileEdit(member) {
+  currentProfileMember = member;
+
+  document.getElementById("edit-familyName").value = member.familyName || "";
+  document.getElementById("edit-fatherName").value = member.fatherName || "";
+  document.getElementById("edit-birthDate").value = member.birthDate || "";
+  document.getElementById("edit-deathDate").value = member.deathDate || "";
+  document.getElementById("edit-education").value = member.education || "";
+  document.getElementById("edit-position").value = member.position || "";
+  document.getElementById("edit-achievements").value =
+    (member.achievements || []).join("\n");
+
+  // ⭐ ТӨРСӨН ГАЗАР UI sync
+  syncBirthPlaceUI(member);
+
+  document.getElementById("profile-edit-backdrop").hidden = false;
+  document.getElementById("profile-edit").hidden = false;
+}
+
+

@@ -201,22 +201,27 @@ onAuthStateChanged(auth, (user) => {
   if (user) {
     const name = user.displayName || user.email.split("@")[0];
 
-    welcomeText.textContent = `Тавтай морилно уу, ${name}`;
-    welcomeText.hidden = false;
+    if (welcomeText) {
+      welcomeText.textContent = `Тавтай морилно уу, ${name}`;
+      welcomeText.hidden = false;
+    }
 
-    btnMyTree.hidden = false;
-    btnLogout.hidden = false;
-    btnLogin.hidden = true;
+    if (btnMyTree) btnMyTree.hidden = false;
+    if (btnLogout) btnLogout.hidden = false;
+    if (btnLogin)  btnLogin.hidden  = true;
 
   } else {
-    welcomeText.textContent = "";
-    welcomeText.hidden = true;
+    if (welcomeText) {
+      welcomeText.textContent = "";
+      welcomeText.hidden = true;
+    }
 
-    btnMyTree.hidden = true;
-    btnLogout.hidden = true;
-    btnLogin.hidden = false;
+    if (btnMyTree) btnMyTree.hidden = true;
+    if (btnLogout) btnLogout.hidden = true;
+    if (btnLogin)  btnLogin.hidden  = false;
   }
 });
+
 
 
 // ======================= FAMILY TREE ROUTING =======================

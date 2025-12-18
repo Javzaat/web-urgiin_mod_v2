@@ -323,7 +323,7 @@ body.dark .card-age {
   border: 1px solid #dcbda0;
   box-shadow: 0 4px 14px rgba(0,0,0,0.15);
 
-  z-index: 999999;
+  z-index: 9000;
 }
 
 .add-menu.hidden {
@@ -441,4 +441,118 @@ body.dark .add-pill {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+/* ================= PROFILE VIEW ================= */
+
+#profile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 9998;
+}
+
+#profile-view {
+  position: fixed;
+  inset: 40px;
+  background: #ffffff;
+  z-index: 9999;
+  border-radius: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
+/* close button */
+#profile-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* basic layout */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.profile-header img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-section {
+  margin-bottom: 20px;
+}
+
+.profile-section h3 {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+/* ===== PROFILE EDIT MODAL ===== */
+
+#profile-edit-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 10000;
+}
+
+#profile-edit {
+  position: fixed;
+  inset: 60px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  z-index: 10001;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+#profile-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+#profile-edit input,
+#profile-edit textarea {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+#profile-edit textarea {
+  min-height: 80px;
+}
+
+#profile-edit-save {
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--brand);
+  color: white;
+  cursor: pointer;
+}
+
+#profile-edit-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
 }

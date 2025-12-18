@@ -46,7 +46,7 @@
       </section>
     </main>
 
-    <!-- ============== PERSON MODAL FOR TREE ============== -->
+    <!-- ============== PERSON EDIT MODAL (SMALL) ============== -->
     <div id="person-backdrop" class="person-backdrop" hidden></div>
     <div id="person-modal" class="person-modal" hidden>
       <div class="person-modal-inner">
@@ -74,7 +74,11 @@
 
           <label>
             Зургийн зам
-            <input id="person-photo" type="text" placeholder="img/profileson.jpg" />
+            <input
+              id="person-photo"
+              type="text"
+              placeholder="img/profileson.jpg"
+            />
           </label>
 
           <div class="modal-actions">
@@ -85,7 +89,132 @@
       </div>
     </div>
 
-    <!-- ============== AUTH SYSTEM (төвийн хэсэгт орхисон) ============== -->
+    <!-- ============== PROFILE VIEW (DETAILED) ============== -->
+    <div id="profile-backdrop" class="profile-backdrop" hidden></div>
+
+    <div id="profile-view" class="profile-view" hidden>
+      <button id="profile-close" class="profile-close">×</button>
+
+      <div class="profile-header">
+        <img id="profile-img" />
+
+        <h2 id="profile-name"></h2>
+        <p id="profile-family"></p>
+
+        <!-- 🔽 ЭНД -->
+        <button id="profile-edit-btn" class="profile-edit-btn">
+          Засах
+        </button>
+      </div>
+
+
+      <div class="profile-section">
+        <h3>Ерөнхий мэдээлэл</h3>
+        <p id="profile-sex"></p>
+        <p id="profile-birth"></p>
+        <p id="profile-death"></p>
+        <p id="profile-place"></p>
+      </div>
+
+      <div class="profile-section">
+        <h3>Боловсрол ба ажил</h3>
+        <p id="profile-education"></p>
+        <p id="profile-position"></p>
+        <p id="profile-major"></p>
+      </div>
+
+      <div class="profile-section">
+        <h3>Амжилт, шагнал</h3>
+        <ul id="profile-achievements"></ul>
+      </div>
+
+      <div class="profile-section">
+        <h3>Зураг, видео</h3>
+        <div id="profile-media"></div>
+      </div>
+      <!-- ================== PROFILE EDIT MODAL ================== -->
+      <div id="profile-edit-backdrop" hidden></div>
+
+      <div id="profile-edit" hidden>
+        <button id="profile-edit-close">×</button>
+
+        <h2>Мэдээлэл засах</h2>
+
+        <label>Овог
+          <input id="edit-familyName" />
+        </label>
+
+        <label>Эцгийн нэр
+          <input id="edit-fatherName" />
+        </label>
+
+        <label>Төрсөн огноо
+          <input id="edit-birthDate" type="date" />
+        </label>
+
+        <label>Нас барсан огноо
+          <input id="edit-deathDate" type="date" />
+        </label>
+
+        <label>Улс
+          <select id="edit-country">
+            <option value="">— Сонгох —</option>
+            <option value="MN">Монгол</option>
+            <option value="OTHER">Гадаад улс</option>
+          </select>
+        </label>
+
+        <div id="mongolia-fields">
+          <label>Аймаг / Хот
+            <select id="edit-province">
+              <option value="">— Сонгох —</option>
+            </select>
+          </label>
+
+          <label>Сум / Дүүрэг
+            <select id="edit-soum">
+              <option value="">— Сонгох —</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="foreign-fields" hidden>
+          <label>Төрсөн газар (чөлөөтэй бичих)
+            <input
+              id="edit-foreign-place"
+              placeholder="Хот, муж, бүс нутаг"
+            />
+          </label>
+        </div>
+
+        <label>Боловсрол
+          <select id="edit-education">
+            <option value="">— Сонгох —</option>
+            <option value="Бага">Бага</option>
+            <option value="Суурь">Суурь</option>
+            <option value="Бүрэн дунд">Бүрэн дунд</option>
+            <option value="Бакалавр">Бакалавр</option>
+            <option value="Магистр">Магистр</option>
+            <option value="Доктор">Доктор</option>
+          </select>
+        </label>
+
+      
+
+        <label>Албан тушаал
+          <input id="edit-position" />
+        </label>
+
+        <label>Амжилтууд (мөр бүрээр)
+          <textarea id="edit-achievements"></textarea>
+        </label>
+
+        <button id="profile-edit-save">Хадгалах</button>
+      </div>
+
+    </div>
+
+    <!-- ============== AUTH SYSTEM ============== -->
     <div id="auth-backdrop" class="auth-backdrop" hidden></div>
 
     <div id="auth-modal" class="auth-modal" hidden>
@@ -153,6 +282,9 @@
     <!-- ============== SCRIPTS ============== -->
     <script src="header.js"></script>
     <script type="module" src="auth.js"></script>
+    <script src="mongolia-data.js"></script>
+
     <script src="family-tree.js"></script>
+    
   </body>
 </html>
