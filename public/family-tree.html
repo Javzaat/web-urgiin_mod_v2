@@ -33,18 +33,26 @@
         <span id="welcome-text" hidden></span>
         <button id="btn-open-auth">Нэвтрэх</button>
         <button id="btn-logout" class="btn-logout" hidden>Гарах</button>
+
+        <!-- 🌗 Theme toggle -->
+        <button id="btn-theme" class="theme-btn">🌙</button>
       </div>
+
     </header>
 
     <!-- ============== FAMILY TREE ============== -->
     <main class="tree-page">
       <section class="tree-layout">
         <div id="tree-root" class="tree-root">
-          <canvas id="tree-lines"></canvas>
+          <svg
+            id="tree-lines-svg"
+            xmlns="http://www.w3.org/2000/svg">
+          </svg>
           <div id="tree-nodes"></div>
         </div>
       </section>
     </main>
+
 
     <!-- ============== PERSON EDIT MODAL (SMALL) ============== -->
     <div id="person-backdrop" class="person-backdrop" hidden></div>
@@ -185,6 +193,22 @@
               placeholder="Хот, муж, бүс нутаг"
             />
           </label>
+        </div>
+        <!-- PROFILE IMAGE -->
+        <div class="profile-photo-edit">
+          <label>Профайл зураг</label>
+
+          <div id="photo-drop" class="photo-drop">
+            <img id="photo-preview" src="" alt="Preview" hidden />
+            <span id="photo-placeholder">Зураг чирч оруулах эсвэл дарж сонгох</span>
+            <input id="photo-file" type="file" accept="image/*" hidden />
+          </div>
+
+          <input
+            id="edit-photo-url"
+            type="text"
+            placeholder="Зургийн URL (https://...)"
+          />
         </div>
 
         <label>Боловсрол

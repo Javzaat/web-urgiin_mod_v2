@@ -53,12 +53,65 @@ class FamilyMember {
   }
 }
 
+let renderQueued = false;
+
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    layoutTree();
+    renderTree();
+  });
+}
+
+let saveTimer = null;
+
+let saving = false;
+
+function saveTreeToDB() {
+  const user = window.auth?.currentUser;
+  if (!user) return;
+
+  clearTimeout(saveTimer);
+
+  saveTimer = setTimeout(async () => {
+    if (saving) return;
+    saving = true;
+
+    try {
+      const res = await fetch("/api/tree/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-uid": user.uid,
+        },
+        body: JSON.stringify({ members }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("SAVE FAILED:", text);
+      }
+
+    } catch (err) {
+      console.error("SAVE ERROR:", err);
+    } finally {
+      saving = false;
+    }
+  }, 600); // ⏱ илүү safe
+}
+
+
+
 
 let members = [];
 let nextId = 1;
 
-let treeRoot, nodesLayer, canvas, ctx;
+let treeRoot, nodesLayer, svg;
 let posMap = new Map(); // id -> {x,y}
+
 
 // Person modal state
 let modalMode = null;   // "add-father" | "add-mother" | "add-spouse" | "add-child" | "edit"
@@ -68,15 +121,41 @@ let modalTarget = null; // FamilyMember
 window.addEventListener("DOMContentLoaded", () => {
   treeRoot = document.getElementById("tree-root");
   nodesLayer = document.getElementById("tree-nodes");
-  canvas = document.getElementById("tree-lines");
-  ctx = canvas.getContext("2d");
+  svg = document.getElementById("tree-lines-svg");
+  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-  loadTreeFromJson();
+  setupPersonModal();
+  setupThemeButton();
+
+  // 🔥 Auth state-г гаднаас hook хийнэ
+  waitForAuthAndLoadTree();
 });
+
+function clearSVG() {
+  while (svg.firstChild) {
+    svg.removeChild(svg.firstChild);
+  }
+}
+function drawSVGLine(x1, y1, x2, y2) {
+  const line = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "line"
+  );
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.setAttribute("stroke", "#8a6a4a");
+  line.setAttribute("stroke-width", "2");
+  line.setAttribute("stroke-linecap", "round");
+  svg.appendChild(line);
+}
+
+
 
 function createDefaultRoot() {
   const me = new FamilyMember({
-    id: 1,
+    id: nextId++,
     name: "Би",
     age: "",
     sex: "",
@@ -86,73 +165,164 @@ function createDefaultRoot() {
   members.push(me);
 }
 
-async function loadTreeFromJson() {
-  try {
-    const res = await fetch("family-tree.json");
-    if (!res.ok) {
-      throw new Error("JSON олдсонгүй эсвэл алдаа: " + res.status);
-    }
 
-    const data = await res.json();
-    const rawMembers = Array.isArray(data.members) ? data.members : [];
 
-    // JSON → FamilyMember объект руу хөрвүүлэх
-    members = rawMembers.map((raw) => {
-      const m = new FamilyMember(raw);
-      m.parents = raw.parents || [];
-      m.children = raw.children || [];
-      m.spouseId = raw.spouseId ?? null;
-      m.collapseUp = !!raw.collapseUp;
-      return m;
-    });
 
-    // Хэрвээ JSON хоосон бол fallback
-    if (!members.length) {
-      createDefaultRoot();
-    }
-  } catch (err) {
-    console.error("family-tree.json ачааллахад алдаа:", err);
-    // Алдаа гарвал бас fallback
-    createDefaultRoot();
-  }
 
-  // nextId-гаа JSON-оос дахин тооцоолно
-  nextId = members.reduce((max, m) => (m.id > max ? m.id : max), 0) + 1;
-
-  // Үлдсэн анхны setup
-  setupPersonModal();
-  setupThemeButton();
-
-  layoutTree();
-  renderTree();
-
-  window.addEventListener("resize", () => {
-    layoutTree();
-    renderTree();
-  });
-
-  document.addEventListener("click", () => {
-    closeAllMenus();
-  });
-}
-
-// ============== SAVE TO JSON (backend рүү) ==============
-async function saveTreeToJson() {
-  try {
-    const payload = { members };
-    await fetch("/api/tree/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    console.error("Ургийн мод хадгалах үед алдаа:", e);
-  }
-}
 
 // ================== HELPERS ==================
+
+function getParentBySex(child, sex) {
+  return (child.parents || [])
+    .map(pid => findMember(pid))
+    .find(p => p && p.sex === sex) || null;
+}
+
+function normalizeParents(child) {
+  if (!Array.isArray(child.parents)) child.parents = [];
+
+  // keep only existing unique ids (no null/undefined)
+  const uniq = [];
+  for (const pid of child.parents) {
+    if (!pid) continue;
+    if (!uniq.includes(pid)) uniq.push(pid);
+  }
+
+  // Try to identify father/mother by sex (preferred)
+  let father = null;
+  let mother = null;
+  const unknown = [];
+
+  for (const pid of uniq) {
+    const p = findMember(pid);
+    if (!p) continue;
+
+    if (p.sex === "male" && !father) father = pid;
+    else if (p.sex === "female" && !mother) mother = pid;
+    else unknown.push(pid); // sex unknown or extra parents
+  }
+
+  // Fill missing slots with unknowns (DO NOT DROP LINKS)
+  if (!father && unknown.length) father = unknown.shift();
+  if (!mother && unknown.length) mother = unknown.shift();
+
+  // canonical: [father, mother] but keep any extras appended (rare case)
+  const next = [];
+  if (father) next[0] = father;
+  if (mother) next[1] = mother;
+
+  // Keep remaining unknown refs (so no data loss)
+  for (const pid of unknown) {
+    if (!next.includes(pid)) next.push(pid);
+  }
+
+  child.parents = next;
+}
+function repairTreeData() {
+  const byId = new Map(members.map(m => [m.id, m]));
+
+  // 1) parents -> children sync
+  members.forEach(child => {
+    (child.parents || []).forEach(pid => {
+      const p = byId.get(pid);
+      if (!p) return;
+      if (!p.children) p.children = [];
+      if (!p.children.includes(child.id)) {
+        p.children.push(child.id);
+      }
+    });
+  });
+
+  // 2) spouse symmetry
+  members.forEach(m => {
+    if (!m.spouseId) return;
+    const s = byId.get(m.spouseId);
+    if (!s) {
+      m.spouseId = null;
+      return;
+    }
+    if (s.spouseId !== m.id) {
+      s.spouseId = m.id;
+    }
+  });
+
+  // 3) recompute level from parents (safe, no force)
+  members.forEach(m => {
+    const pids = (m.parents || []).filter(pid => byId.has(pid));
+    if (!pids.length) return;
+
+    const parentLevels = pids
+      .map(pid => byId.get(pid).level)
+      .filter(v => typeof v === "number" && isFinite(v));
+
+    if (!parentLevels.length) return;
+
+    const target = Math.min(...parentLevels) + 1;
+    if (m.level !== target) m.level = target;
+  });
+
+  // 4) canonicalize parents everywhere (Fix #1 logic)
+  members.forEach(m => normalizeParents(m));
+}
+
+
+let authListenerAttached = false;
+
+function waitForAuthAndLoadTree() {
+  const authWait = setInterval(() => {
+    if (!window.auth || authListenerAttached) return;
+
+    clearInterval(authWait);
+    authListenerAttached = true;
+
+    window.auth.onAuthStateChanged((user) => {
+      members = [];
+      posMap.clear();
+      nextId = 1;
+
+      if (user) {
+        loadTreeFromDB();
+      } else {
+        createDefaultRoot();
+        scheduleRender();
+       
+      }
+    });
+  }, 50);
+}
+
+
+function familyCenterX(memberId) {
+  const m = findMember(memberId);
+  if (!m) return null;
+
+  const r = cardRect(memberId);
+  if (!r) return null;
+
+  if (!m.spouseId) return r.cx;
+
+  const sr = cardRect(m.spouseId);
+  if (!sr) return r.cx;
+
+  return (r.cx + sr.cx) / 2;
+}
+
+function cardRect(id) {
+  const el = document.querySelector(`.family-card[data-id="${id}"]`);
+  if (!el) return null;
+
+  const r = el.getBoundingClientRect();
+  const root = treeRoot.getBoundingClientRect();
+
+  return {
+    cx: r.left + r.width / 2 - root.left,
+    top: r.top - root.top,
+    bottom: r.bottom - root.top,
+    left: r.left - root.left,
+    right: r.right - root.left,
+  };
+}
+
 function findMember(id) {
   return members.find((m) => m.id === id);
 }
@@ -160,36 +330,48 @@ function findMember(id) {
 // ---- ancestors hidden set (collapseUp) ----
 function buildHiddenAncestorSet() {
   const hidden = new Set();
+  const visited = new Set();
 
-  members.forEach((m) => {
-    if (!m.collapseUp) return;
-    const stack = [...(m.parents || [])];
+  function dfs(id) {
+    if (visited.has(id)) return;
+    visited.add(id);
 
-    while (stack.length) {
-      const pid = stack.pop();
-      if (hidden.has(pid)) continue;
-      hidden.add(pid);
-      const p = findMember(pid);
-      if (p && p.parents && p.parents.length) {
-        stack.push(...p.parents);
+    const m = findMember(id);
+    if (!m || !m.parents) return;
+
+    m.parents.forEach(pid => {
+      if (!hidden.has(pid)) {
+        hidden.add(pid);
+        dfs(pid);
       }
+    });
+  }
+
+  members.forEach(m => {
+    if (m.collapseUp) {
+      dfs(m.id);
     }
   });
 
   return hidden;
 }
 
+
 // ================== LAYOUT ==================
 function layoutTree() {
   if (!treeRoot) return;
 
   const hiddenAnc = buildHiddenAncestorSet();
-  const visibleMembers = members.filter((m) => !hiddenAnc.has(m.id));
+  const visibleMembers = members.filter(m => !hiddenAnc.has(m.id));
   if (!visibleMembers.length) return;
 
-  const levels = Array.from(
-    new Set(visibleMembers.map((m) => m.level))
-  ).sort((a, b) => a - b);
+  const levelMap = new Map();
+  visibleMembers.forEach(m => {
+    if (!levelMap.has(m.level)) levelMap.set(m.level, []);
+    levelMap.get(m.level).push(m);
+  });
+
+  const levels = [...levelMap.keys()].sort((a, b) => a - b);
 
   const paddingTop = 80;
   const rowGap = CARD_H + V_GAP;
@@ -198,35 +380,29 @@ function layoutTree() {
   const newPosMap = new Map();
 
   levels.forEach((levelValue, rowIndex) => {
-    const rowNodes = visibleMembers.filter((m) => m.level === levelValue);
+    const rowNodes = levelMap.get(levelValue);
     if (!rowNodes.length) return;
 
-    // Anchor: эцэг эхийн нь X-үүдийн дундаж
-    let hasAnchor = false;
-    rowNodes.forEach((m) => {
-      let anchor = 0;
-      const parentPosList = (m.parents || [])
-        .filter((pid) => !hiddenAnc.has(pid))
-        .map((pid) => newPosMap.get(pid))
+    // === ANCHOR COMPUTE ===
+    rowNodes.forEach(m => {
+      const parents = (m.parents || [])
+        .filter(pid => !hiddenAnc.has(pid))
+        .map(pid => newPosMap.get(pid))
         .filter(Boolean);
 
-      if (parentPosList.length > 0) {
-        anchor =
-          parentPosList.reduce((sum, p) => sum + p.x, 0) /
-          parentPosList.length;
-        hasAnchor = true;
-      }
-      m._anchor = anchor;
+      m._anchor = parents.length
+        ? parents.reduce((s, p) => s + p.x, 0) / parents.length
+        : null;
     });
 
-    // Эхнэр нөхрийн нэгж
+    // === UNITS (COUPLES / SINGLE) ===
     const used = new Set();
     const units = [];
 
-    rowNodes.forEach((m) => {
+    rowNodes.forEach(m => {
       if (used.has(m.id)) return;
 
-      if (m.spouseId && !hiddenAnc.has(m.spouseId)) {
+      if (m.spouseId) {
         const s = findMember(m.spouseId);
         if (s && s.level === levelValue && !used.has(s.id)) {
           units.push({ type: "couple", ids: [m.id, s.id] });
@@ -235,116 +411,111 @@ function layoutTree() {
           return;
         }
       }
+
       units.push({ type: "single", ids: [m.id] });
       used.add(m.id);
     });
 
     const y = paddingTop + rowIndex * rowGap;
     const UNIT_WIDTH = CARD_W * 2.2;
-    const MIN_DIST = UNIT_WIDTH + H_GAP * 0.2;
+    const MIN_DIST = UNIT_WIDTH + H_GAP * 0.3;
 
-    // Anchor байхгүй бол зүгээр төвд нь тааруулна
-    if (!hasAnchor) {
-      const unitCount = units.length;
-      const totalWidth =
-        unitCount * UNIT_WIDTH + (unitCount - 1) * H_GAP;
-      const startX = Math.max((containerWidth - totalWidth) / 2, 20);
+    const anchored = units.some(u =>
+      u.ids.some(id => {
+        const m = rowNodes.find(x => x.id === id);
+        return m && isFinite(m._anchor);
+      })
+    );
 
-      units.forEach((u, idx) => {
-        const centerX =
-          startX + idx * (UNIT_WIDTH + H_GAP) + UNIT_WIDTH / 2;
+    // === NO ANCHOR → CENTER ===
+    if (!anchored) {
+      const total =
+        units.length * UNIT_WIDTH + (units.length - 1) * H_GAP;
+      let startX = Math.max((containerWidth - total) / 2, 40);
+
+      units.forEach(u => {
+        const cx = startX + UNIT_WIDTH / 2;
 
         if (u.type === "single") {
-          const id = u.ids[0];
-          newPosMap.set(id, { x: centerX, y });
+          newPosMap.set(u.ids[0], { x: cx, y });
         } else {
-          const [id1, id2] = [...u.ids].sort((a, b) => a - b);
-          const offset = CARD_W * 0.55;
-
-          newPosMap.set(id1, { x: centerX - offset, y });
-          newPosMap.set(id2, { x: centerX + offset, y });
+          const off = CARD_W * 0.55;
+          newPosMap.set(u.ids[0], { x: cx - off, y });
+          newPosMap.set(u.ids[1], { x: cx + off, y });
         }
+
+        startX += UNIT_WIDTH + H_GAP;
       });
 
       return;
     }
 
-    // Anchor-тай үед: эцэг эхийн доор тааруулах
-    units.forEach((u) => {
-      const anchors = u.ids.map((id) => {
-        const mem = rowNodes.find((m) => m.id === id);
-        return mem ? mem._anchor || 0 : 0;
-      });
-      let avg =
-        anchors.reduce((sum, a) => sum + a, 0) /
-        Math.max(anchors.length, 1);
-      if (!avg || !isFinite(avg)) avg = 0;
-      u.anchor = avg;
+    // === ANCHOR SORT ===
+    units.forEach(u => {
+      const anchors = u.ids
+        .map(id => rowNodes.find(m => m.id === id)?._anchor)
+        .filter(v => isFinite(v));
+      u.anchor = anchors.length
+        ? anchors.reduce((s, a) => s + a, 0) / anchors.length
+        : null;
     });
 
-    units.sort((a, b) => a.anchor - b.anchor);
-
-    let currentX = null;
-    units.forEach((u) => {
-      let desired = u.anchor;
-      if (!desired || !isFinite(desired)) {
-        desired =
-          currentX == null ? containerWidth / 2 : currentX + MIN_DIST;
-      }
-
-      let centerX;
-      if (currentX == null) {
-        centerX = desired || containerWidth / 2;
-      } else {
-        centerX = Math.max(desired, currentX + MIN_DIST);
-      }
-
-      u._centerX = centerX;
-      currentX = centerX;
+    units.sort((a, b) => {
+      if (a.anchor == null) return 1;
+      if (b.anchor == null) return -1;
+      return a.anchor - b.anchor;
     });
 
-    let minX = Math.min(...units.map((u) => u._centerX));
-    let maxX = Math.max(...units.map((u) => u._centerX));
-    const margin = 40;
+    let cursorX = null;
+    units.forEach(u => {
+      let cx = u.anchor ?? (cursorX ?? containerWidth / 2);
+      if (cursorX != null) cx = Math.max(cx, cursorX + MIN_DIST);
+      u._cx = cx;
+      cursorX = cx;
+    });
+
+    // === SHIFT INTO VIEW ===
+    const minX = Math.min(...units.map(u => u._cx));
+    const maxX = Math.max(...units.map(u => u._cx));
     let shift = 0;
 
     if (maxX - minX < containerWidth) {
-      const usedWidth = maxX - minX;
-      shift = (containerWidth - usedWidth) / 2 - minX;
-    } else if (minX < margin) {
-      shift = margin - minX;
+      shift = (containerWidth - (maxX - minX)) / 2 - minX;
+    } else if (minX < 40) {
+      shift = 40 - minX;
     }
 
-    units.forEach((u) => {
-      const cx = u._centerX + shift;
+    units.forEach(u => {
+      const cx = u._cx + shift;
 
       if (u.type === "single") {
-        const id = u.ids[0];
-        newPosMap.set(id, { x: cx, y });
+        newPosMap.set(u.ids[0], { x: cx, y });
       } else {
-        const [id1, id2] = [...u.ids].sort((a, b) => a - b);
-        const offset = CARD_W * 0.55;
-
-        newPosMap.set(id1, { x: cx - offset, y });
-        newPosMap.set(id2, { x: cx + offset, y });
+        const off = CARD_W * 0.55;
+        newPosMap.set(u.ids[0], { x: cx - off, y });
+        newPosMap.set(u.ids[1], { x: cx + off, y });
       }
     });
   });
 
-  members.forEach((m) => {
-    const pos = newPosMap.get(m.id);
-    if (pos) {
-      m.x = pos.x;
-      m.y = pos.y;
+  members.forEach(m => {
+    const p = newPosMap.get(m.id);
+    if (p) {
+      m.x = p.x;
+      m.y = p.y;
     }
   });
 
   posMap = newPosMap;
 
-  const totalHeight =
-    paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H;
-  treeRoot.style.height = Math.max(450, totalHeight) + "px";
+  treeRoot.style.height =
+    Math.max(
+      450,
+      paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H
+    ) + "px";
 }
+
+
 
 // ================== RENDER ==================
 function layoutVisibleMembers() {
@@ -353,33 +524,47 @@ function layoutVisibleMembers() {
 }
 
 function renderTree() {
-  if (!nodesLayer) return;
+  if (!nodesLayer || !treeRoot || !svg) return;
 
+  // 1️⃣ Cards эхэлж DOM-д орно
   nodesLayer.innerHTML = "";
-
   const visibleMembers = layoutVisibleMembers();
 
-  visibleMembers.forEach((m) => {
+  visibleMembers.forEach(m => {
     const card = createFamilyCard(m);
     card.style.left = m.x - CARD_W / 2 + "px";
-    card.style.top = m.y - CARD_H / 2 + "px";
+    card.style.top  = m.y - CARD_H / 2 + "px";
     nodesLayer.appendChild(card);
   });
 
-  resizeCanvas();
-  drawLines(visibleMembers);
+  // 2️⃣ SVG-г дараа нь resize + line draw
+  requestAnimationFrame(() => {
+    const w = treeRoot.clientWidth;
+    const h = treeRoot.clientHeight;
+
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+
+    drawLines(visibleMembers);
+  });
 }
 
-function resizeCanvas() {
-  const rect = treeRoot.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
-}
+
+
+
+
+// function resizeCanvas() {
+//   const rect = treeRoot.getBoundingClientRect();
+//   canvas.width = rect.width;
+//   canvas.height = rect.height;
+// }
 
 // ================== CARD COMPONENT ==================
 function createFamilyCard(member) {
   const card = document.createElement("div");
   card.className = "family-card";
+  card.dataset.id = member.id;
   if (member.sex === "male") card.classList.add("male");
   else if (member.sex === "female") card.classList.add("female");
   if (member.collapseUp) card.classList.add("collapse-up");
@@ -585,9 +770,8 @@ function createFamilyCard(member) {
   btnUp.addEventListener("click", (e) => {
     e.stopPropagation();
     member.collapseUp = !member.collapseUp;
-    layoutTree();
-    renderTree();
-    saveTreeToJson();
+    scheduleRender();
+    saveTreeToDB();
   });
 
   return card;
@@ -705,10 +889,10 @@ function submitPersonForm() {
       break;
   }
 
-  saveTreeToJson();  // бүх өөрчлөлтийг файлд хадгална
+  saveTreeToDB();  // бүх өөрчлөлтийг файлд хадгална
   closePersonModal();
-  layoutTree();
-  renderTree();
+  scheduleRender();
+
 }
 
 // ================== ADD / EDIT / DELETE ==================
@@ -720,12 +904,14 @@ function normalizeSex(str) {
 }
 
 function addFatherWithData(child, data) {
-  if (child.parents[0]) {
+  const existingFather = getParentBySex(child, "male");
+  if (existingFather) {
     alert("Эцэг аль хэдийн бүртгэлтэй байна.");
     return;
   }
 
   const level = child.level - 1;
+
   const father = new FamilyMember({
     id: nextId++,
     name: data.name || "Эцэг",
@@ -736,27 +922,30 @@ function addFatherWithData(child, data) {
   });
 
   father.children.push(child.id);
-  child.parents[0] = father.id;
+  child.parents.push(father.id);
 
-  // эх байвал хань болгож холбоно
-  if (child.parents[1]) {
-    const mother = findMember(child.parents[1]);
-    if (mother) {
-      father.spouseId = mother.id;
-      mother.spouseId = father.id;
-    }
+  // эх байвал spouse болгоно
+  const mother = getParentBySex(child, "female");
+  if (mother) {
+    father.spouseId = mother.id;
+    mother.spouseId = father.id;
   }
 
   members.push(father);
+  members.forEach(m => normalizeParents(m));
 }
 
+
+
 function addMotherWithData(child, data) {
-  if (child.parents[1]) {
+  const existingMother = getParentBySex(child, "female");
+  if (existingMother) {
     alert("Эх аль хэдийн бүртгэлтэй байна.");
     return;
   }
 
   const level = child.level - 1;
+
   const mother = new FamilyMember({
     id: nextId++,
     name: data.name || "Эх",
@@ -767,18 +956,19 @@ function addMotherWithData(child, data) {
   });
 
   mother.children.push(child.id);
-  child.parents[1] = mother.id;
+  child.parents.push(mother.id);
 
-  if (child.parents[0]) {
-    const father = findMember(child.parents[0]);
-    if (father) {
-      mother.spouseId = father.id;
-      father.spouseId = mother.id;
-    }
+  // эцэг байвал spouse болгоно
+  const father = getParentBySex(child, "male");
+  if (father) {
+    mother.spouseId = father.id;
+    father.spouseId = mother.id;
   }
 
   members.push(mother);
+  members.forEach(m => normalizeParents(m));
 }
+
 
 function addSpouseWithData(person, data) {
   if (person.spouseId) {
@@ -800,57 +990,99 @@ function addSpouseWithData(person, data) {
   spouse.spouseId = person.id;
   person.spouseId = spouse.id;
 
+  // 🔐 sync existing children (NO OVERWRITE)
+  person.children.forEach(cid => {
+    const child = findMember(cid);
+    if (!child) return;
+
+    // link child list
+    if (!spouse.children.includes(child.id)) {
+      spouse.children.push(child.id);
+    }
+
+    // add parent ONLY if missing
+    const hasMale   = getParentBySex(child, "male");
+    const hasFemale = getParentBySex(child, "female");
+
+    if (sex === "male" && !hasMale) {
+      child.parents.push(spouse.id);
+    } 
+    else if (sex === "female" && !hasFemale) {
+      child.parents.push(spouse.id);
+    }
+  });
+
   members.push(spouse);
+  members.forEach(m => normalizeParents(m));
 }
+
+
 
 function addChildWithData(parent, data) {
   const sex = normalizeSex(data.sex);
 
-  const level = parent.level + 1;
   const child = new FamilyMember({
     id: nextId++,
     name: data.name || "Хүүхэд",
     age: data.age,
     sex,
-    level,
+    level: parent.level + 1,
     photoUrl: data.photoUrl || "img/profileson.jpg",
   });
 
-  // parent → child
-  parent.children.push(child.id);
-
-  if (parent.sex === "male") {
-    child.parents[0] = parent.id;
-  } else if (parent.sex === "female") {
-    child.parents[1] = parent.id;
-  } else {
-    child.parents.push(parent.id);
+  // parent → child list (safe)
+  if (!parent.children.includes(child.id)) {
+    parent.children.push(child.id);
   }
 
+  // ✅ ALWAYS link parent id (no reliance on parent.sex)
+  child.parents = [];
+  child.parents.push(parent.id);
+
+  // spouse auto-link (safe)
   if (parent.spouseId) {
     const spouse = findMember(parent.spouseId);
     if (spouse) {
-      spouse.children.push(child.id);
-      if (spouse.sex === "male") child.parents[0] = spouse.id;
-      else if (spouse.sex === "female") child.parents[1] = spouse.id;
-      else if (!child.parents.includes(spouse.id))
+      if (!spouse.children.includes(child.id)) {
+        spouse.children.push(child.id);
+      }
+      if (!child.parents.includes(spouse.id)) {
         child.parents.push(spouse.id);
+      }
     }
   }
 
   members.push(child);
+  members.forEach(m => normalizeParents(m));
 }
+
+
 
 function editPersonWithData(member, data) {
-  member.name = data.name || member.name;
-  member.age = data.age || "";
-  member.sex = normalizeSex(data.sex);
+  // 📝 name
+  if (typeof data.name === "string" && data.name.trim() !== "") {
+    member.name = data.name.trim();
+  }
 
-  // photoUrl ирсэн бол шинэчилнэ
-  if (typeof data.photoUrl !== "undefined" && data.photoUrl !== "") {
-    member.photoUrl = data.photoUrl;
+  // 🎂 age (хоосон бол хуучныг хадгална)
+  if (typeof data.age === "string") {
+    const trimmedAge = data.age.trim();
+    if (trimmedAge !== "") {
+      member.age = trimmedAge;
+    }
+  }
+
+  // 🚻 sex (зөвхөн өгөгдсөн үед)
+  if (typeof data.sex === "string" && data.sex.trim() !== "") {
+    member.sex = normalizeSex(data.sex);
+  }
+
+  // 🖼 photoUrl (хоосон string-ээр дарж устгахгүй)
+  if (typeof data.photoUrl === "string" && data.photoUrl.trim() !== "") {
+    member.photoUrl = data.photoUrl.trim();
   }
 }
+
 
 function deletePerson(member) {
   if (member.level === 0 && members.length === 1) {
@@ -861,18 +1093,42 @@ function deletePerson(member) {
 
   const id = member.id;
 
-  members.forEach((m) => {
-    m.children = m.children.filter((cid) => cid !== id);
-    m.parents = (m.parents || []).filter((pid) => pid !== id);
+  // 1) Remove the member itself
+  members = members.filter(m => m.id !== id);
+
+  // 2) Remove references + spouse links
+  members.forEach(m => {
+    m.children = (m.children || []).filter(cid => cid !== id);
+    m.parents  = (m.parents  || []).filter(pid => pid !== id);
     if (m.spouseId === id) m.spouseId = null;
   });
 
-  members = members.filter((m) => m.id !== id);
+  // 3) Fix child levels when their parent was deleted
+  //    For every remaining node, recompute level from any existing parent if possible.
+  const byId = new Map(members.map(m => [m.id, m]));
 
-  saveTreeToJson();
-  layoutTree();
-  renderTree();
+  members.forEach(child => {
+    const pids = (child.parents || []).filter(pid => byId.has(pid));
+    if (!pids.length) return; // no parent left → keep current level (no data loss)
+
+    const parentLevels = pids
+      .map(pid => byId.get(pid).level)
+      .filter(v => typeof v === "number" && isFinite(v));
+
+    if (!parentLevels.length) return;
+
+    const targetLevel = Math.min(...parentLevels) + 1;
+    if (child.level !== targetLevel) child.level = targetLevel;
+  });
+
+  // 4) Normalize parents everywhere (no data loss after Fix #1)
+  members.forEach(m => normalizeParents(m));
+
+  saveTreeToDB();
+  scheduleRender();
 }
+
+
 
 // ================== THEME BUTTON ==================
 function setupThemeButton() {
@@ -884,130 +1140,92 @@ function setupThemeButton() {
   });
 }
 
-// ================== DRAW LINES ==================
+
+function getCardHalfHeight() {
+  const card = document.querySelector(".family-card");
+  if (!card) return CARD_H / 2;
+  return card.offsetHeight / 2;
+}
+function safeLine(svg, x1, y1, x2, y2) {
+  if (![x1, y1, x2, y2].every(v => typeof v === "number" && isFinite(v))) {
+    return;
+  }
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.setAttribute("stroke", "#8a6a4a");
+  line.setAttribute("stroke-width", "2");
+  line.setAttribute("stroke-linecap", "round");
+  svg.appendChild(line);
+}
+
+
 function drawLines(visibleMembers) {
-  if (!ctx) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!svg) return;
+  svg.innerHTML = "";
 
-  ctx.strokeStyle = "#8a6a4a";
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
+  const visibleIds = new Set(visibleMembers.map(m => m.id));
+  const GAP = 18;
 
-  const visibleIds = new Set(visibleMembers.map((m) => m.id));
+  /* ================= SPOUSE ================= */
+  visibleMembers.forEach(m => {
+    if (!m.spouseId || !visibleIds.has(m.spouseId)) return;
+    if (m.id > m.spouseId) return;
 
-  // 1. Spouse lines
-  visibleMembers.forEach((m) => {
-    if (!m.spouseId) return;
-    if (!visibleIds.has(m.spouseId)) return;
+    const a = cardRect(m.id);
+    const b = cardRect(m.spouseId);
+    if (!a || !b) return;
 
-    const spouse = findMember(m.spouseId);
-    if (!spouse) return;
-    if (m.id > spouse.id) return;
-
-    const p1 = posMap.get(m.id);
-    const p2 = posMap.get(spouse.id);
-    if (!p1 || !p2) return;
-
-    const y = p1.y;
-
-    ctx.beginPath();
-    ctx.moveTo(p1.x + CARD_W * 0.3, y);
-    ctx.lineTo(p2.x - CARD_W * 0.3, y);
-    ctx.stroke();
+    const y = (a.top + a.bottom) / 2;
+    safeLine(svg, a.right, y, b.left, y);
   });
 
-  // 2. Хоёр эцэг эх + олон хүүхэд
-  const pairMap = new Map();
-
-  visibleMembers.forEach((child) => {
-    const parentsArr = (child.parents || []).filter((id) =>
-      visibleIds.has(id)
-    );
-    if (parentsArr.length < 2) return;
-
-    const [a, b] = parentsArr;
-    const p1 = Math.min(a, b);
-    const p2 = Math.max(a, b);
-    const key = p1 + "-" + p2;
-
-    if (!pairMap.has(key)) {
-      pairMap.set(key, { parents: [p1, p2], children: [] });
-    }
-    pairMap.get(key).children.push(child.id);
-  });
-
-  pairMap.forEach((group) => {
-    const [p1id, p2id] = group.parents;
-    const parent1Pos = posMap.get(p1id);
-    const parent2Pos = posMap.get(p2id);
-    if (!parent1Pos || !parent2Pos) return;
-
-    const childrenPos = group.children
-      .map((id) => posMap.get(id))
+  /* ================= CHILD → PARENTS (UNIFIED FIX) ================= */
+  visibleMembers.forEach(child => {
+    const parents = (child.parents || [])
+      .map(pid => findMember(pid))
+      .filter(p => p && visibleIds.has(p.id))
+      .map(p => cardRect(p.id))
       .filter(Boolean);
 
-    if (!childrenPos.length) return;
+    if (!parents.length) return;
 
-    const parentBottomY = parent1Pos.y + CARD_H / 2;
-    const childTopY = childrenPos[0].y - CARD_H / 2;
+    const c = cardRect(child.id);
+    if (!c) return;
 
-    const midParentX = (parent1Pos.x + parent2Pos.x) / 2;
+    const parentsCenterX =
+      parents.reduce((s, p) => s + p.cx, 0) / parents.length;
 
-    const parentsBarY = parentBottomY + 16;
+    const topParentY = Math.max(...parents.map(p => p.bottom));
+    const midY = topParentY + GAP;
 
-    const minChildX = Math.min(...childrenPos.map((c) => c.x));
-    const maxChildX = Math.max(...childrenPos.map((c) => c.x));
-    const siblingY = childTopY - 20;
-
-    ctx.beginPath();
-
-    ctx.moveTo(parent1Pos.x, parentBottomY);
-    ctx.lineTo(parent1Pos.x, parentsBarY);
-
-    ctx.moveTo(parent2Pos.x, parentBottomY);
-    ctx.lineTo(parent2Pos.x, parentsBarY);
-
-    ctx.moveTo(parent1Pos.x, parentsBarY);
-    ctx.lineTo(parent2Pos.x, parentsBarY);
-
-    ctx.moveTo(midParentX, parentsBarY);
-    ctx.lineTo(midParentX, siblingY);
-
-    ctx.moveTo(minChildX, siblingY);
-    ctx.lineTo(maxChildX, siblingY);
-
-    childrenPos.forEach((pos) => {
-      ctx.moveTo(pos.x, siblingY);
-      ctx.lineTo(pos.x, childTopY);
+    /* parents → horizontal bar */
+    parents.forEach(p => {
+      safeLine(svg, p.cx, p.bottom, p.cx, midY);
     });
 
-    ctx.stroke();
-  });
+    if (parents.length > 1) {
+      const minX = Math.min(...parents.map(p => p.cx));
+      const maxX = Math.max(...parents.map(p => p.cx));
+      safeLine(svg, minX, midY, maxX, midY);
+    }
 
-  // 3. Ганц эцэг/эхтэй хүүхэд
-  visibleMembers.forEach((child) => {
-    const parentsArr = (child.parents || []).filter((id) =>
-      visibleIds.has(id)
-    );
-    if (parentsArr.length !== 1) return;
-
-    const parentId = parentsArr[0];
-    const p = posMap.get(parentId);
-    const c = posMap.get(child.id);
-    if (!p || !c) return;
-
-    const parentBottom = p.y + CARD_H / 2;
-    const childTop = c.y - CARD_H / 2;
-    const midY = (parentBottom + childTop) / 2;
-
-    ctx.beginPath();
-    ctx.moveTo(p.x, parentBottom);
-    ctx.lineTo(p.x, midY);
-    ctx.lineTo(c.x, midY);
-    ctx.lineTo(c.x, childTop);
-    ctx.stroke();
+    /* down to child */
+    safeLine(svg, parentsCenterX, midY, parentsCenterX, c.top);
+    safeLine(svg, parentsCenterX, c.top, c.cx, c.top);
+    safeLine(svg, c.cx, c.top, c.cx, c.top + 1);
   });
 }
+
+
+
+
+
+
+
 // ================== PROFILE VIEW ==================
 
 function openProfileView(member) {
@@ -1130,7 +1348,9 @@ document.getElementById("profile-edit-backdrop")
 document.getElementById("profile-edit-save")
   ?.addEventListener("click", () => {
     if (!currentProfileMember) return;
-
+    if (preview && !preview.hidden) {
+      currentProfileMember.photoUrl = preview.src;
+    }
     currentProfileMember.familyName =
       document.getElementById("edit-familyName").value.trim();
 
@@ -1171,7 +1391,7 @@ document.getElementById("profile-edit-save")
 
     // 🔼 🔼 🔼 ЭНД ДУУСНА 🔼 🔼 🔼
 
-    saveTreeToJson();
+    saveTreeToDB();
     openProfileView(currentProfileMember);
     closeProfileEdit();
   });
@@ -1318,6 +1538,129 @@ function openProfileEdit(member) {
 
   document.getElementById("profile-edit-backdrop").hidden = false;
   document.getElementById("profile-edit").hidden = false;
+  // preload profile photo
+  // preload profile photo (SAFE)
+  if (preview && placeholder && urlInput) {
+    if (member.photoUrl) {
+      preview.src = member.photoUrl;
+      preview.hidden = false;
+      placeholder.hidden = true;
+      urlInput.value =
+        member.photoUrl.startsWith("http") ? member.photoUrl : "";
+    } else {
+      preview.hidden = true;
+      placeholder.hidden = false;
+      urlInput.value = "";
+    }
+  }
+
+
 }
 
 
+// ================== PROFILE PHOTO LOGIC ==================
+const drop = document.getElementById("photo-drop");
+const fileInput = document.getElementById("photo-file");
+const preview = document.getElementById("photo-preview");
+const placeholder = document.getElementById("photo-placeholder");
+const urlInput = document.getElementById("edit-photo-url");
+
+if (drop) {
+  // click → file chooser
+  drop.addEventListener("click", () => fileInput.click());
+
+  // drag over
+  drop.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    drop.style.borderColor = "var(--brand)";
+  });
+
+  // drag leave
+  drop.addEventListener("dragleave", () => {
+    drop.style.borderColor = "var(--border)";
+  });
+
+  // drop file
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    drop.style.borderColor = "var(--border)";
+    const file = e.dataTransfer.files[0];
+    if (file) loadImageFile(file);
+  });
+}
+
+// file selected
+fileInput?.addEventListener("change", () => {
+  if (fileInput.files[0]) {
+    loadImageFile(fileInput.files[0]);
+  }
+});
+
+// URL input
+urlInput?.addEventListener("input", () => {
+  const url = urlInput.value.trim();
+  if (url) {
+    preview.src = url;
+    preview.hidden = false;
+    placeholder.hidden = true;
+  }
+});
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    preview.src = reader.result;
+    preview.hidden = false;
+    placeholder.hidden = true;
+    urlInput.value = ""; // URL цэвэрлэнэ
+  };
+  reader.readAsDataURL(file);
+}
+
+async function loadTreeFromDB() {
+  const user = window.auth?.currentUser;
+  if (!user) return;
+
+  try {
+    const res = await fetch("/api/tree/load", {
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-uid": user.uid
+      }
+    });
+
+    const data = await res.json();
+    if (!data || !data.ok) return;
+
+    const rawMembers = Array.isArray(data.members) ? data.members : [];
+
+    // 1️⃣ Restore members
+    members = rawMembers.map(raw => {
+      const m = new FamilyMember(raw);
+      m.parents = Array.isArray(raw.parents) ? raw.parents.slice() : [];
+      m.children = Array.isArray(raw.children) ? raw.children.slice() : [];
+      m.spouseId = raw.spouseId ?? null;
+      m.collapseUp = !!raw.collapseUp;
+      return m;
+    });
+
+    // 2️⃣ If empty → create root
+    if (!members.length) {
+      createDefaultRoot();
+    }
+
+    // 3️⃣ Repair data consistency (CRITICAL)
+    repairTreeData();
+
+    // 4️⃣ Recalculate nextId safely
+    nextId =
+      members.reduce((max, m) => (m.id > max ? m.id : max), 0) + 1;
+
+    // 5️⃣ Render AFTER data is fully clean
+    scheduleRender();
+
+
+  } catch (err) {
+    console.error("DB-ээс tree ачааллахад алдаа:", err);
+  }
+}  

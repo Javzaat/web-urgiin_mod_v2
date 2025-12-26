@@ -1,12 +1,35 @@
+/* ========== THEME VARIABLES (LIGHT) ========== */
 :root {
-  --bg: #f5efe3;
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --text: #1f2937;
+  --text-soft: #6b7280;
+  --border: #e5e7eb;
+
+  --brand: #c89b3c;
+  --card: #ffffff;
   --panel: #ffffff;
-  --text: #1f1f1f;
-  --txt: #6b5b4b;
-  --brand: #5c4033;
-  --border: #e5d7c4;
-  font-family: Arial, Helvetica, sans-serif;
+
+  --shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
+
+/* ========== THEME VARIABLES (DARK) ========== */
+body.dark {
+  --bg: #0f172a;
+  --bg-soft: #111827;
+  --text: #e5e7eb;
+  --text-soft: #9ca3af;
+  --border: #1f2937;
+
+  --brand: #e6b45c;
+  --card: #111827;
+  --panel: #020617;
+
+  --shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+
+
 * {
   box-sizing: border-box;
 }
@@ -35,7 +58,9 @@ body {
   max-width: 65ch;
   margin-left: 0;
   padding: clamp(20px, 3vw, 36px);
-  background: #fff;
+  background: var(--card);
+  box-shadow: var(--shadow);
+
 }
 
 .family h1 {
@@ -47,12 +72,12 @@ body {
 }
 .family p {
   margin: 18px 0 18px 0;
-  color: var(--txt);
+  color: var(--text-soft);
   font-size: clamp(15px, 1.6vw, 18px);
 }
 .family .cta {
-  background: #fff;
-  border: 2px solid #ccc;
+  background: var(--card);
+  border: 2px solid var(--border);
   color: var(--brand);
   border-radius: 10px;
   padding: 12px 18px;
@@ -98,4 +123,22 @@ body {
     border-radius: 0;
     clip-path: ellipse(120% 100% at 50% 0%);
   }
+}
+/* ===== THEME TOGGLE BUTTON ===== */
+.theme-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow);
+}
+
+.theme-btn:hover {
+  filter: brightness(0.95);
 }
