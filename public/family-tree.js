@@ -158,9 +158,9 @@ function createDefaultRoot() {
     id: nextId++,
     name: "Би",
     age: "",
-    sex: "",
+    sex: "male", // ⭐ default male
     level: 0,
-    photoUrl: "img/profileson.jpg",
+    photoUrl: defaultPhotoBySex("male"),
   });
   members.push(me);
 }
@@ -170,7 +170,15 @@ function createDefaultRoot() {
 
 
 
+
 // ================== HELPERS ==================
+function defaultPhotoBySex(sex) {
+  if (sex === "male") return "img/profileman.avif";
+  if (sex === "female") return "img/profilewoman.jpg";
+  return "img/profileson.jpg";
+}
+
+
 function getTreeBounds(visibleMembers) {
   let minX = Infinity, minY = Infinity;
   let maxX = -Infinity, maxY = -Infinity;
@@ -182,8 +190,18 @@ function getTreeBounds(visibleMembers) {
     maxY = Math.max(maxY, m.y + CARD_H / 2);
   });
 
-  return { minX, minY, maxX, maxY };
+  // ⭐ EXTRA PADDING for SVG lines & joints
+  const PAD_X = 40;
+  const PAD_Y = 40;
+
+  return {
+    minX: minX - PAD_X,
+    minY: minY - PAD_Y,
+    maxX: maxX + PAD_X,
+    maxY: maxY + PAD_Y
+  };
 }
+
 
 
 function getParentBySex(child, sex) {
@@ -382,6 +400,7 @@ function layoutTree() {
   const visibleMembers = members.filter(m => !hiddenAnc.has(m.id));
   if (!visibleMembers.length) return;
 
+  /* ===== GROUP BY LEVEL ===== */
   const levelMap = new Map();
   visibleMembers.forEach(m => {
     if (!levelMap.has(m.level)) levelMap.set(m.level, []);
@@ -392,56 +411,138 @@ function layoutTree() {
 
   const paddingTop = 80;
   const rowGap = CARD_H + V_GAP;
-
   const newPosMap = new Map();
 
   levels.forEach((levelValue, rowIndex) => {
     const row = levelMap.get(levelValue);
     const y = paddingTop + rowIndex * rowGap;
 
-    // ===== group couples / singles =====
-    const units = [];
     const used = new Set();
+    const units = [];
 
+    /* ================= BUILD UNITS (GENEALOGY LOGIC – UNCHANGED) ================= */
     row.forEach(m => {
       if (used.has(m.id)) return;
 
       if (m.spouseId) {
         const s = findMember(m.spouseId);
         if (s && s.level === levelValue && !used.has(s.id)) {
-          units.push([m.id, s.id]);
-          used.add(m.id);
-          used.add(s.id);
+
+          let husband = m.sex === "male" ? m : s;
+          let wife    = m.sex === "female" ? m : s;
+
+          if (!husband || !wife) {
+            husband = m;
+            wife = s;
+          }
+
+          used.add(husband.id);
+          used.add(wife.id);
+
+          const husbandSibs = [];
+          const wifeSibs = [];
+
+          row.forEach(x => {
+            if (used.has(x.id)) return;
+            if (!x.parents || !husband.parents) return;
+
+            const shared =
+              x.parents.some(p => husband.parents.includes(p));
+
+            if (shared && x.id !== husband.id && x.id !== wife.id) {
+              husbandSibs.push(x);
+              used.add(x.id);
+            }
+          });
+
+          row.forEach(x => {
+            if (used.has(x.id)) return;
+            if (!x.parents || !wife.parents) return;
+
+            const shared =
+              x.parents.some(p => wife.parents.includes(p));
+
+            if (shared && x.id !== husband.id && x.id !== wife.id) {
+              wifeSibs.push(x);
+              used.add(x.id);
+            }
+          });
+
+          units.push({
+            type: "family",
+            husband,
+            wife,
+            husbandSibs,
+            wifeSibs
+          });
           return;
         }
       }
-      units.push([m.id]);
+
       used.add(m.id);
+      units.push({ type: "single", member: m });
     });
 
-    // ===== total row width =====
-    const UNIT_W = CARD_W * 2.2;
-    const totalWidth =
-      units.length * UNIT_W + (units.length - 1) * H_GAP;
+    /* ================= CALCULATE TOTAL ROW WIDTH (⭐ NEW BALANCE PART ⭐) ================= */
+    const GAP = CARD_W + H_GAP;
 
-    // ⭐ CENTER THIS ROW AROUND 0 ⭐
-    let cursorX = -totalWidth / 2 + UNIT_W / 2;
+    const unitWidths = units.map(unit => {
+      if (unit.type === "single") return GAP;
+      const left = unit.husbandSibs.length;
+      const right = unit.wifeSibs.length;
+      return (left + right + 2) * GAP;
+    });
 
-    units.forEach(u => {
-      const cx = cursorX;
+    const totalRowWidth =
+      unitWidths.reduce((s, w) => s + w, 0) +
+      (units.length - 1) * H_GAP;
 
-      if (u.length === 1) {
-        newPosMap.set(u[0], { x: cx, y });
-      } else {
-        const off = CARD_W * 0.55;
-        newPosMap.set(u[0], { x: cx - off, y });
-        newPosMap.set(u[1], { x: cx + off, y });
+    /* ================= CENTER THIS ROW ================= */
+    let cursorX = -totalRowWidth / 2;
+
+    units.forEach((unit, idx) => {
+      if (unit.type === "single") {
+        newPosMap.set(unit.member.id, {
+          x: cursorX + GAP / 2,
+          y
+        });
+        cursorX += GAP + H_GAP;
+        return;
       }
 
-      cursorX += UNIT_W + H_GAP;
+      const { husband, wife, husbandSibs, wifeSibs } = unit;
+
+      const leftCount = husbandSibs.length;
+      const rightCount = wifeSibs.length;
+      const unitWidth = (leftCount + rightCount + 2) * GAP;
+
+      let x = cursorX;
+
+      // 👨 siblings (LEFT)
+      husbandSibs.forEach(s => {
+        newPosMap.set(s.id, { x: x + GAP / 2, y });
+        x += GAP;
+      });
+
+      // 👨 husband
+      newPosMap.set(husband.id, { x: x + GAP / 2, y });
+      x += GAP;
+
+      // 👩 wife
+      newPosMap.set(wife.id, { x: x + GAP / 2, y });
+      x += GAP;
+
+      // 👩 siblings (RIGHT)
+      wifeSibs.forEach(s => {
+        newPosMap.set(s.id, { x: x + GAP / 2, y });
+        x += GAP;
+      });
+
+      cursorX += unitWidth + H_GAP;
     });
   });
 
+  /* ================= APPLY ================= */
   members.forEach(m => {
     const p = newPosMap.get(m.id);
     if (p) {
@@ -452,6 +553,9 @@ function layoutTree() {
 
   posMap = newPosMap;
 }
+
+
+
 
 
 
@@ -699,10 +803,12 @@ function createFamilyCard(member) {
     e.stopPropagation();
     openPersonModal("add-spouse", member, {
       name: "Хань",
-      photoUrl: "img/profilespouse.jpg",
+      sex: "",        // ❌ preset sex БАЙХГҮЙ
+      photoUrl: "",   // ❌ preset зураг БАЙХГҮЙ
     });
     closeAllMenus();
   };
+
 
   btnChild.onclick = (e) => {
     e.stopPropagation();
@@ -761,14 +867,33 @@ function setupPersonModal() {
   const form = document.getElementById("person-form");
   const btnCancel = document.getElementById("person-cancel");
 
-  // Хэрвээ эдгээрээс аль нэг нь байхгүй бол modal-гүй хуудсан дээр байна гэж үзээд алдаа гаргалгүй return хийнэ
-  if (!backdrop || !modal || !form || !btnCancel) {
-    console.warn("Person modal elements not found, skipping modal setup");
-    return;
-  }
+  if (!backdrop || !modal || !form || !btnCancel) return;
 
   btnCancel.addEventListener("click", closePersonModal);
   backdrop.addEventListener("click", closePersonModal);
+
+  const sexSelect = document.getElementById("person-sex");
+  const photoInput = document.getElementById("person-photo");
+
+  // ⭐ SEX → PHOTO AUTO SYNC
+  if (sexSelect && photoInput) {
+    sexSelect.addEventListener("change", () => {
+      const sex = normalizeSex(sexSelect.value);
+
+      const isCustom =
+        photoInput.value &&
+        ![
+          "img/profileman.avif",
+          "img/profilewoman.jpg",
+          "img/profileson.jpg",
+          "img/profilespouse.jpg",
+        ].includes(photoInput.value);
+
+      if (!isCustom) {
+        photoInput.value = defaultPhotoBySex(sex);
+      }
+    });
+  }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -942,38 +1067,44 @@ function addSpouseWithData(person, data) {
     return;
   }
 
-  const sex = normalizeSex(data.sex);
+  // ⭐ ALWAYS opposite sex
+  let spouseSex;
+  if (person.sex === "male") spouseSex = "female";
+  else if (person.sex === "female") spouseSex = "male";
+  else spouseSex = normalizeSex(data.sex);
 
   const spouse = new FamilyMember({
     id: nextId++,
     name: data.name || "Хань",
     age: data.age,
-    sex,
+    sex: spouseSex,
     level: person.level,
-    photoUrl: data.photoUrl || "img/profilespouse.jpg",
+    // ⭐ PHOTO STRICTLY BY SEX unless user typed custom
+    photoUrl:
+      data.photoUrl && data.photoUrl.trim()
+        ? data.photoUrl.trim()
+        : defaultPhotoBySex(spouseSex),
   });
 
   spouse.spouseId = person.id;
   person.spouseId = spouse.id;
 
-  // 🔐 sync existing children (NO OVERWRITE)
+  // 🔗 хүүхдүүдийг sync
   person.children.forEach(cid => {
     const child = findMember(cid);
     if (!child) return;
 
-    // link child list
     if (!spouse.children.includes(child.id)) {
       spouse.children.push(child.id);
     }
 
-    // add parent ONLY if missing
-    const hasMale   = getParentBySex(child, "male");
+    const hasMale = getParentBySex(child, "male");
     const hasFemale = getParentBySex(child, "female");
 
-    if (sex === "male" && !hasMale) {
+    if (spouseSex === "male" && !hasMale) {
       child.parents.push(spouse.id);
-    } 
-    else if (sex === "female" && !hasFemale) {
+    }
+    if (spouseSex === "female" && !hasFemale) {
       child.parents.push(spouse.id);
     }
   });
@@ -981,6 +1112,8 @@ function addSpouseWithData(person, data) {
   members.push(spouse);
   members.forEach(m => normalizeParents(m));
 }
+
+
 
 
 
@@ -993,22 +1126,25 @@ function addChildWithData(parent, data) {
     age: data.age,
     sex,
     level: parent.level + 1,
-    photoUrl: data.photoUrl || "img/profileson.jpg",
+    photoUrl:
+      data.photoUrl && data.photoUrl.trim()
+        ? data.photoUrl.trim()
+        : "img/profileson.jpg",
   });
 
-  // parent → child list (safe)
+  /* ================= LINK PARENTS ================= */
+
+  child.parents = [];
+  child.parents.push(parent.id);
+
   if (!parent.children.includes(child.id)) {
     parent.children.push(child.id);
   }
 
-  // ✅ ALWAYS link parent id (no reliance on parent.sex)
-  child.parents = [];
-  child.parents.push(parent.id);
-
-  // spouse auto-link (safe)
+  // auto-link spouse ONLY if same level
   if (parent.spouseId) {
     const spouse = findMember(parent.spouseId);
-    if (spouse) {
+    if (spouse && spouse.level === parent.level) {
       if (!spouse.children.includes(child.id)) {
         spouse.children.push(child.id);
       }
@@ -1018,36 +1154,81 @@ function addChildWithData(parent, data) {
     }
   }
 
+  /* =====================================================
+     ⭐ CORRECT LINEAGE SIDE DETECTION
+     Decide whose sibling this child is
+  ===================================================== */
+
+  child._lineageSide = null;
+
+  // existing children of this parent (siblings group)
+  const siblings = parent.children
+    .map(cid => findMember(cid))
+    .filter(m => m && m.id !== child.id);
+
+  // check if this parent already has a husband / wife child
+  const husbandSibling = siblings.find(
+    s => s.sex === "male" && s.spouseId
+  );
+  const wifeSibling = siblings.find(
+    s => s.sex === "female" && s.spouseId
+  );
+
+  if (husbandSibling) {
+    // husband's parents adding child
+    child._lineageSide = "left";   // FRONT
+  } else if (wifeSibling) {
+    // wife's parents adding child
+    child._lineageSide = "right";  // BACK
+  }
+
   members.push(child);
   members.forEach(m => normalizeParents(m));
 }
 
 
 
+
+
+
 function editPersonWithData(member, data) {
-  // 📝 name
-  if (typeof data.name === "string" && data.name.trim() !== "") {
+  let sexChanged = false;
+
+  if (data.name?.trim()) {
     member.name = data.name.trim();
   }
 
-  // 🎂 age (хоосон бол хуучныг хадгална)
-  if (typeof data.age === "string") {
-    const trimmedAge = data.age.trim();
-    if (trimmedAge !== "") {
-      member.age = trimmedAge;
+  if (typeof data.age === "string" && data.age.trim() !== "") {
+    member.age = data.age.trim();
+  }
+
+  if (data.sex?.trim()) {
+    const newSex = normalizeSex(data.sex);
+    if (newSex && newSex !== member.sex) {
+      member.sex = newSex;
+      sexChanged = true;
     }
   }
 
-  // 🚻 sex (зөвхөн өгөгдсөн үед)
-  if (typeof data.sex === "string" && data.sex.trim() !== "") {
-    member.sex = normalizeSex(data.sex);
-  }
+  const hasCustomPhoto =
+    member.photoUrl &&
+    ![
+      "img/profileman.avif",
+      "img/profilewoman.jpg",
+      "img/profileson.jpg",
+      "img/profilespouse.jpg",
+    ].includes(member.photoUrl);
 
-  // 🖼 photoUrl (хоосон string-ээр дарж устгахгүй)
-  if (typeof data.photoUrl === "string" && data.photoUrl.trim() !== "") {
+  if (data.photoUrl?.trim()) {
     member.photoUrl = data.photoUrl.trim();
+  } 
+  else if (sexChanged && !hasCustomPhoto) {
+    member.photoUrl = defaultPhotoBySex(member.sex);
   }
 }
+
+
+
 
 
 function deletePerson(member) {
@@ -1136,10 +1317,10 @@ function drawLines(visibleMembers) {
   const visibleIds = new Set(visibleMembers.map(m => m.id));
   const GAP = 18;
 
-  /* ================= SPOUSE ================= */
+  /* ================= SPOUSE (HORIZONTAL) ================= */
   visibleMembers.forEach(m => {
     if (!m.spouseId || !visibleIds.has(m.spouseId)) return;
-    if (m.id > m.spouseId) return;
+    if (m.id > m.spouseId) return; // draw once
 
     const a = cardRect(m.id);
     const b = cardRect(m.spouseId);
@@ -1149,42 +1330,49 @@ function drawLines(visibleMembers) {
     safeLine(svg, a.right, y, b.left, y);
   });
 
-  /* ================= CHILD → PARENTS (UNIFIED FIX) ================= */
+  /* ================= CHILD → PARENTS (CLEAN & BALANCED) ================= */
   visibleMembers.forEach(child => {
-    const parents = (child.parents || [])
+    const parentRects = (child.parents || [])
       .map(pid => findMember(pid))
       .filter(p => p && visibleIds.has(p.id))
       .map(p => cardRect(p.id))
       .filter(Boolean);
 
-    if (!parents.length) return;
+    if (!parentRects.length) return;
 
     const c = cardRect(child.id);
     if (!c) return;
 
+    // parents center X
     const parentsCenterX =
-      parents.reduce((s, p) => s + p.cx, 0) / parents.length;
+      parentRects.reduce((s, p) => s + p.cx, 0) / parentRects.length;
 
-    const topParentY = Math.max(...parents.map(p => p.bottom));
-    const midY = topParentY + GAP;
+    // lowest parent bottom
+    const parentsBottomY = Math.max(...parentRects.map(p => p.bottom));
+    const midY = parentsBottomY + GAP;
 
-    /* parents → horizontal bar */
-    parents.forEach(p => {
+    // 1) vertical from each parent to midY
+    parentRects.forEach(p => {
       safeLine(svg, p.cx, p.bottom, p.cx, midY);
     });
 
-    if (parents.length > 1) {
-      const minX = Math.min(...parents.map(p => p.cx));
-      const maxX = Math.max(...parents.map(p => p.cx));
+    // 2) horizontal bar if 2+ parents
+    if (parentRects.length > 1) {
+      const minX = Math.min(...parentRects.map(p => p.cx));
+      const maxX = Math.max(...parentRects.map(p => p.cx));
       safeLine(svg, minX, midY, maxX, midY);
     }
 
-    /* down to child */
-    safeLine(svg, parentsCenterX, midY, parentsCenterX, c.top - 6);
-    safeLine(svg, parentsCenterX, c.top - 6, c.cx, c.top - 6);
-    safeLine(svg, c.cx, c.top - 6, c.cx, c.top);
+    // 3) down from parentsCenter → child top
+    const childTopY = c.top;
+    const jointY = childTopY - 6;
+
+    safeLine(svg, parentsCenterX, midY, parentsCenterX, jointY);
+    safeLine(svg, parentsCenterX, jointY, c.cx, jointY);
+    safeLine(svg, c.cx, jointY, c.cx, childTopY);
   });
 }
+
 
 
 
@@ -1630,5 +1818,3 @@ async function loadTreeFromDB() {
     console.error("DB-ээс tree ачааллахад алдаа:", err);
   }
 }  
-
-
