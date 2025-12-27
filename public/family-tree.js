@@ -171,6 +171,20 @@ function createDefaultRoot() {
 
 
 // ================== HELPERS ==================
+function getTreeBounds(visibleMembers) {
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+
+  visibleMembers.forEach(m => {
+    minX = Math.min(minX, m.x - CARD_W / 2);
+    maxX = Math.max(maxX, m.x + CARD_W / 2);
+    minY = Math.min(minY, m.y - CARD_H / 2);
+    maxY = Math.max(maxY, m.y + CARD_H / 2);
+  });
+
+  return { minX, minY, maxX, maxY };
+}
+
 
 function getParentBySex(child, sex) {
   return (child.parents || [])
@@ -308,18 +322,21 @@ function familyCenterX(memberId) {
 }
 
 function cardRect(id) {
-  const el = document.querySelector(`.family-card[data-id="${id}"]`);
-  if (!el) return null;
+  const m = findMember(id);
+  if (!m) return null;
 
-  const r = el.getBoundingClientRect();
-  const root = treeRoot.getBoundingClientRect();
+  // m.x, m.y бол layoutTree() дээр тооцсон "tree space" координатууд
+  const left   = m.x - CARD_W / 2;
+  const right  = m.x + CARD_W / 2;
+  const top    = m.y - CARD_H / 2;
+  const bottom = m.y + CARD_H / 2;
 
   return {
-    cx: r.left + r.width / 2 - root.left,
-    top: r.top - root.top,
-    bottom: r.bottom - root.top,
-    left: r.left - root.left,
-    right: r.right - root.left,
+    cx: m.x,
+    top,
+    bottom,
+    left,
+    right
   };
 }
 
@@ -375,126 +392,53 @@ function layoutTree() {
 
   const paddingTop = 80;
   const rowGap = CARD_H + V_GAP;
-  const containerWidth = treeRoot.clientWidth || 900;
 
   const newPosMap = new Map();
 
   levels.forEach((levelValue, rowIndex) => {
-    const rowNodes = levelMap.get(levelValue);
-    if (!rowNodes.length) return;
+    const row = levelMap.get(levelValue);
+    const y = paddingTop + rowIndex * rowGap;
 
-    // === ANCHOR COMPUTE ===
-    rowNodes.forEach(m => {
-      const parents = (m.parents || [])
-        .filter(pid => !hiddenAnc.has(pid))
-        .map(pid => newPosMap.get(pid))
-        .filter(Boolean);
-
-      m._anchor = parents.length
-        ? parents.reduce((s, p) => s + p.x, 0) / parents.length
-        : null;
-    });
-
-    // === UNITS (COUPLES / SINGLE) ===
-    const used = new Set();
+    // ===== group couples / singles =====
     const units = [];
+    const used = new Set();
 
-    rowNodes.forEach(m => {
+    row.forEach(m => {
       if (used.has(m.id)) return;
 
       if (m.spouseId) {
         const s = findMember(m.spouseId);
         if (s && s.level === levelValue && !used.has(s.id)) {
-          units.push({ type: "couple", ids: [m.id, s.id] });
+          units.push([m.id, s.id]);
           used.add(m.id);
           used.add(s.id);
           return;
         }
       }
-
-      units.push({ type: "single", ids: [m.id] });
+      units.push([m.id]);
       used.add(m.id);
     });
 
-    const y = paddingTop + rowIndex * rowGap;
-    const UNIT_WIDTH = CARD_W * 2.2;
-    const MIN_DIST = UNIT_WIDTH + H_GAP * 0.3;
+    // ===== total row width =====
+    const UNIT_W = CARD_W * 2.2;
+    const totalWidth =
+      units.length * UNIT_W + (units.length - 1) * H_GAP;
 
-    const anchored = units.some(u =>
-      u.ids.some(id => {
-        const m = rowNodes.find(x => x.id === id);
-        return m && isFinite(m._anchor);
-      })
-    );
-
-    // === NO ANCHOR → CENTER ===
-    if (!anchored) {
-      const total =
-        units.length * UNIT_WIDTH + (units.length - 1) * H_GAP;
-      let startX = Math.max((containerWidth - total) / 2, 40);
-
-      units.forEach(u => {
-        const cx = startX + UNIT_WIDTH / 2;
-
-        if (u.type === "single") {
-          newPosMap.set(u.ids[0], { x: cx, y });
-        } else {
-          const off = CARD_W * 0.55;
-          newPosMap.set(u.ids[0], { x: cx - off, y });
-          newPosMap.set(u.ids[1], { x: cx + off, y });
-        }
-
-        startX += UNIT_WIDTH + H_GAP;
-      });
-
-      return;
-    }
-
-    // === ANCHOR SORT ===
-    units.forEach(u => {
-      const anchors = u.ids
-        .map(id => rowNodes.find(m => m.id === id)?._anchor)
-        .filter(v => isFinite(v));
-      u.anchor = anchors.length
-        ? anchors.reduce((s, a) => s + a, 0) / anchors.length
-        : null;
-    });
-
-    units.sort((a, b) => {
-      if (a.anchor == null) return 1;
-      if (b.anchor == null) return -1;
-      return a.anchor - b.anchor;
-    });
-
-    let cursorX = null;
-    units.forEach(u => {
-      let cx = u.anchor ?? (cursorX ?? containerWidth / 2);
-      if (cursorX != null) cx = Math.max(cx, cursorX + MIN_DIST);
-      u._cx = cx;
-      cursorX = cx;
-    });
-
-    // === SHIFT INTO VIEW ===
-    const minX = Math.min(...units.map(u => u._cx));
-    const maxX = Math.max(...units.map(u => u._cx));
-    let shift = 0;
-
-    if (maxX - minX < containerWidth) {
-      shift = (containerWidth - (maxX - minX)) / 2 - minX;
-    } else if (minX < 40) {
-      shift = 40 - minX;
-    }
+    // ⭐ CENTER THIS ROW AROUND 0 ⭐
+    let cursorX = -totalWidth / 2 + UNIT_W / 2;
 
     units.forEach(u => {
-      const cx = u._cx + shift;
+      const cx = cursorX;
 
-      if (u.type === "single") {
-        newPosMap.set(u.ids[0], { x: cx, y });
+      if (u.length === 1) {
+        newPosMap.set(u[0], { x: cx, y });
       } else {
         const off = CARD_W * 0.55;
-        newPosMap.set(u.ids[0], { x: cx - off, y });
-        newPosMap.set(u.ids[1], { x: cx + off, y });
+        newPosMap.set(u[0], { x: cx - off, y });
+        newPosMap.set(u[1], { x: cx + off, y });
       }
+
+      cursorX += UNIT_W + H_GAP;
     });
   });
 
@@ -507,13 +451,9 @@ function layoutTree() {
   });
 
   posMap = newPosMap;
-
-  treeRoot.style.height =
-    Math.max(
-      450,
-      paddingTop * 2 + (levels.length - 1) * rowGap + CARD_H
-    ) + "px";
 }
+
+
 
 
 
@@ -526,25 +466,51 @@ function layoutVisibleMembers() {
 function renderTree() {
   if (!nodesLayer || !treeRoot || !svg) return;
 
-  // 1️⃣ Cards эхэлж DOM-д орно
+  const scaleBox = document.getElementById("tree-scale");
+
   nodesLayer.innerHTML = "";
   const visibleMembers = layoutVisibleMembers();
+  if (!visibleMembers.length) return;
 
+  // 1) render cards in tree space
   visibleMembers.forEach(m => {
     const card = createFamilyCard(m);
-    card.style.left = m.x - CARD_W / 2 + "px";
-    card.style.top  = m.y - CARD_H / 2 + "px";
+    card.style.left = (m.x - CARD_W / 2) + "px";
+    card.style.top  = (m.y - CARD_H / 2) + "px";
     nodesLayer.appendChild(card);
   });
 
-  // 2️⃣ SVG-г дараа нь resize + line draw
   requestAnimationFrame(() => {
-    const w = treeRoot.clientWidth;
-    const h = treeRoot.clientHeight;
+    const bounds = getTreeBounds(visibleMembers);
 
-    svg.setAttribute("width", w);
-    svg.setAttribute("height", h);
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    const treeW = bounds.maxX - bounds.minX;
+    const treeH = bounds.maxY - bounds.minY;
+
+    const viewW = treeRoot.clientWidth;
+    const viewH = treeRoot.clientHeight;
+
+    if (treeW <= 0 || treeH <= 0) return;
+
+    // 2) scale to fit viewport
+    const scale = Math.min(viewW / treeW, viewH / treeH, 1);
+
+    // 3) center inside viewport (in screen space)
+    const offsetX = (viewW - treeW * scale) / 2;
+    const offsetY = (viewH - treeH * scale) / 2;
+
+    // 4) IMPORTANT: order is center -> scale -> shift-to-zero
+    scaleBox.style.transform =
+      `translate(${offsetX}px, ${offsetY}px) scale(${scale}) translate(${-bounds.minX}px, ${-bounds.minY}px)`;
+
+    // 5) SVG must live in the SAME tree space as nodes (before transform)
+    svg.setAttribute("width", treeW);
+    svg.setAttribute("height", treeH);
+    svg.setAttribute("viewBox", `0 0 ${treeW} ${treeH}`);
+
+    // Place SVG at origin inside scaleBox coordinates
+    svg.style.position = "absolute";
+    svg.style.left = "0px";
+    svg.style.top = "0px";
 
     drawLines(visibleMembers);
   });
@@ -1214,9 +1180,9 @@ function drawLines(visibleMembers) {
     }
 
     /* down to child */
-    safeLine(svg, parentsCenterX, midY, parentsCenterX, c.top);
-    safeLine(svg, parentsCenterX, c.top, c.cx, c.top);
-    safeLine(svg, c.cx, c.top, c.cx, c.top + 1);
+    safeLine(svg, parentsCenterX, midY, parentsCenterX, c.top - 6);
+    safeLine(svg, parentsCenterX, c.top - 6, c.cx, c.top - 6);
+    safeLine(svg, c.cx, c.top - 6, c.cx, c.top);
   });
 }
 
@@ -1664,3 +1630,5 @@ async function loadTreeFromDB() {
     console.error("DB-ээс tree ачааллахад алдаа:", err);
   }
 }  
+
+
