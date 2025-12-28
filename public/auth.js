@@ -192,10 +192,20 @@ logoutCancel?.addEventListener("click", closeLogoutPopup);
 logoutBackdrop?.addEventListener("click", closeLogoutPopup);
 
 logoutConfirm?.addEventListener("click", async () => {
+  try {
+    // ✅ Хэрвээ family-tree.html дээр байвал logout-оос өмнө save хийнэ
+    if (typeof window.saveTreeNow === "function") {
+      await window.saveTreeNow();
+    }
+  } catch (e) {
+    console.warn("saveTreeNow failed before logout:", e);
+  }
+
   await signOut(auth);
   closeLogoutPopup();
   showToast("Амжилттай гарлаа");
 });
+
 
 
 // ======================= AUTH STATE =======================

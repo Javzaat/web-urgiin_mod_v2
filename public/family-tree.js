@@ -3,10 +3,27 @@ const CARD_H = 190;
 const H_GAP = 60;
 const V_GAP = 60;
 
+/* ✅ MEMBERS-ийг ЭНД зарлана (хамгийн дээр) */
+let members = [];
+let nextId = 1;
+
+/* ✅ глобалд харагдуулна */
+window.members = members;
+window.getMembers = () => members;
+
+let renderQueued = false;
+let saveTimer = null;
+let saving = false;
+
 // ================== DATA MODEL ==================
 class FamilyMember {
-  constructor({ 
-    id, name, age, sex, level, photoUrl,
+  constructor({
+    id,
+    name,
+    age,
+    sex,
+    level,
+    photoUrl,
 
     // NEW (optional)
     familyName,
@@ -19,7 +36,7 @@ class FamilyMember {
     position,
     achievements,
     images,
-    videos
+    videos,
   }) {
     this.id = id;
     this.name = name || "";
@@ -53,8 +70,6 @@ class FamilyMember {
   }
 }
 
-let renderQueued = false;
-
 function scheduleRender() {
   if (renderQueued) return;
   renderQueued = true;
@@ -66,11 +81,15 @@ function scheduleRender() {
   });
 }
 
-let saveTimer = null;
+window.addEventListener("beforeunload", () => {
+  // debounce амжихгүй байж магадгүй тул sync-ish trigger
+  if (typeof window.saveTreeNow === "function") window.saveTreeNow();
+});
 
-let saving = false;
+window.members = members;
+window.getMembers = () => members;
 
-function saveTreeToDB() {
+async function saveTreeToDB() {
   const user = window.auth?.currentUser;
   if (!user) return;
 
@@ -81,12 +100,16 @@ function saveTreeToDB() {
     saving = true;
 
     try {
+      // ✅ ЭНД token авна
+      const token = await user.getIdToken();
+
       const res = await fetch("/api/tree/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-uid": user.uid,
+          Authorization: `Bearer ${token}`,
         },
+
         body: JSON.stringify({ members }),
       });
 
@@ -94,27 +117,47 @@ function saveTreeToDB() {
         const text = await res.text();
         console.error("SAVE FAILED:", text);
       }
-
     } catch (err) {
       console.error("SAVE ERROR:", err);
     } finally {
       saving = false;
     }
-  }, 600); // ⏱ илүү safe
+  }, 600);
 }
 
+async function saveTreeNow() {
+  const user = window.auth?.currentUser;
+  if (!user) return;
 
+  try {
+    const token = await user.getIdToken();
 
+    const res = await fetch("/api/tree/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-uid": user.uid,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ members }),
+    });
 
-let members = [];
-let nextId = 1;
+    if (!res.ok) {
+      console.error("SAVE NOW FAILED:", await res.text());
+    }
+  } catch (err) {
+    console.error("SAVE NOW ERROR:", err);
+  }
+}
+
+// ✅ logout хийх үед auth.js-ээс дуудаж чаддаг болгоё
+window.saveTreeNow = saveTreeNow;
 
 let treeRoot, nodesLayer, svg;
 let posMap = new Map(); // id -> {x,y}
 
-
 // Person modal state
-let modalMode = null;   // "add-father" | "add-mother" | "add-spouse" | "add-child" | "edit"
+let modalMode = null; // "add-father" | "add-mother" | "add-spouse" | "add-child" | "edit"
 let modalTarget = null; // FamilyMember
 
 // ============== INIT ==============
@@ -137,10 +180,7 @@ function clearSVG() {
   }
 }
 function drawSVGLine(x1, y1, x2, y2) {
-  const line = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "line"
-  );
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("x1", x1);
   line.setAttribute("y1", y1);
   line.setAttribute("x2", x2);
@@ -150,8 +190,6 @@ function drawSVGLine(x1, y1, x2, y2) {
   line.setAttribute("stroke-linecap", "round");
   svg.appendChild(line);
 }
-
-
 
 function createDefaultRoot() {
   const me = new FamilyMember({
@@ -165,12 +203,6 @@ function createDefaultRoot() {
   members.push(me);
 }
 
-
-
-
-
-
-
 // ================== HELPERS ==================
 function defaultPhotoBySex(sex) {
   if (sex === "male") return "img/profileman.avif";
@@ -178,12 +210,13 @@ function defaultPhotoBySex(sex) {
   return "img/profileson.jpg";
 }
 
-
 function getTreeBounds(visibleMembers) {
-  let minX = Infinity, minY = Infinity;
-  let maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity;
+  let maxX = -Infinity,
+    maxY = -Infinity;
 
-  visibleMembers.forEach(m => {
+  visibleMembers.forEach((m) => {
     minX = Math.min(minX, m.x - CARD_W / 2);
     maxX = Math.max(maxX, m.x + CARD_W / 2);
     minY = Math.min(minY, m.y - CARD_H / 2);
@@ -198,16 +231,16 @@ function getTreeBounds(visibleMembers) {
     minX: minX - PAD_X,
     minY: minY - PAD_Y,
     maxX: maxX + PAD_X,
-    maxY: maxY + PAD_Y
+    maxY: maxY + PAD_Y,
   };
 }
 
-
-
 function getParentBySex(child, sex) {
-  return (child.parents || [])
-    .map(pid => findMember(pid))
-    .find(p => p && p.sex === sex) || null;
+  return (
+    (child.parents || [])
+      .map((pid) => findMember(pid))
+      .find((p) => p && p.sex === sex) || null
+  );
 }
 
 function normalizeParents(child) {
@@ -251,11 +284,11 @@ function normalizeParents(child) {
   child.parents = next;
 }
 function repairTreeData() {
-  const byId = new Map(members.map(m => [m.id, m]));
+  const byId = new Map(members.map((m) => [m.id, m]));
 
   // 1) parents -> children sync
-  members.forEach(child => {
-    (child.parents || []).forEach(pid => {
+  members.forEach((child) => {
+    (child.parents || []).forEach((pid) => {
       const p = byId.get(pid);
       if (!p) return;
       if (!p.children) p.children = [];
@@ -266,7 +299,7 @@ function repairTreeData() {
   });
 
   // 2) spouse symmetry
-  members.forEach(m => {
+  members.forEach((m) => {
     if (!m.spouseId) return;
     const s = byId.get(m.spouseId);
     if (!s) {
@@ -279,13 +312,13 @@ function repairTreeData() {
   });
 
   // 3) recompute level from parents (safe, no force)
-  members.forEach(m => {
-    const pids = (m.parents || []).filter(pid => byId.has(pid));
+  members.forEach((m) => {
+    const pids = (m.parents || []).filter((pid) => byId.has(pid));
     if (!pids.length) return;
 
     const parentLevels = pids
-      .map(pid => byId.get(pid).level)
-      .filter(v => typeof v === "number" && isFinite(v));
+      .map((pid) => byId.get(pid).level)
+      .filter((v) => typeof v === "number" && isFinite(v));
 
     if (!parentLevels.length) return;
 
@@ -294,9 +327,8 @@ function repairTreeData() {
   });
 
   // 4) canonicalize parents everywhere (Fix #1 logic)
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 }
-
 
 let authListenerAttached = false;
 
@@ -308,7 +340,7 @@ function waitForAuthAndLoadTree() {
     authListenerAttached = true;
 
     window.auth.onAuthStateChanged((user) => {
-      members = [];
+      members.length = 0;
       posMap.clear();
       nextId = 1;
 
@@ -317,12 +349,10 @@ function waitForAuthAndLoadTree() {
       } else {
         createDefaultRoot();
         scheduleRender();
-       
       }
     });
   }, 50);
 }
-
 
 function familyCenterX(memberId) {
   const m = findMember(memberId);
@@ -344,9 +374,9 @@ function cardRect(id) {
   if (!m) return null;
 
   // m.x, m.y бол layoutTree() дээр тооцсон "tree space" координатууд
-  const left   = m.x - CARD_W / 2;
-  const right  = m.x + CARD_W / 2;
-  const top    = m.y - CARD_H / 2;
+  const left = m.x - CARD_W / 2;
+  const right = m.x + CARD_W / 2;
+  const top = m.y - CARD_H / 2;
   const bottom = m.y + CARD_H / 2;
 
   return {
@@ -354,7 +384,7 @@ function cardRect(id) {
     top,
     bottom,
     left,
-    right
+    right,
   };
 }
 
@@ -374,7 +404,7 @@ function buildHiddenAncestorSet() {
     const m = findMember(id);
     if (!m || !m.parents) return;
 
-    m.parents.forEach(pid => {
+    m.parents.forEach((pid) => {
       if (!hidden.has(pid)) {
         hidden.add(pid);
         dfs(pid);
@@ -382,7 +412,7 @@ function buildHiddenAncestorSet() {
     });
   }
 
-  members.forEach(m => {
+  members.forEach((m) => {
     if (m.collapseUp) {
       dfs(m.id);
     }
@@ -391,18 +421,17 @@ function buildHiddenAncestorSet() {
   return hidden;
 }
 
-
 // ================== LAYOUT ==================
 function layoutTree() {
   if (!treeRoot) return;
 
   const hiddenAnc = buildHiddenAncestorSet();
-  const visibleMembers = members.filter(m => !hiddenAnc.has(m.id));
+  const visibleMembers = members.filter((m) => !hiddenAnc.has(m.id));
   if (!visibleMembers.length) return;
 
   /* ===== GROUP BY LEVEL ===== */
   const levelMap = new Map();
-  visibleMembers.forEach(m => {
+  visibleMembers.forEach((m) => {
     if (!levelMap.has(m.level)) levelMap.set(m.level, []);
     levelMap.get(m.level).push(m);
   });
@@ -421,15 +450,14 @@ function layoutTree() {
     const units = [];
 
     /* ================= BUILD UNITS (GENEALOGY LOGIC – UNCHANGED) ================= */
-    row.forEach(m => {
+    row.forEach((m) => {
       if (used.has(m.id)) return;
 
       if (m.spouseId) {
         const s = findMember(m.spouseId);
         if (s && s.level === levelValue && !used.has(s.id)) {
-
           let husband = m.sex === "male" ? m : s;
-          let wife    = m.sex === "female" ? m : s;
+          let wife = m.sex === "female" ? m : s;
 
           if (!husband || !wife) {
             husband = m;
@@ -442,12 +470,11 @@ function layoutTree() {
           const husbandSibs = [];
           const wifeSibs = [];
 
-          row.forEach(x => {
+          row.forEach((x) => {
             if (used.has(x.id)) return;
             if (!x.parents || !husband.parents) return;
 
-            const shared =
-              x.parents.some(p => husband.parents.includes(p));
+            const shared = x.parents.some((p) => husband.parents.includes(p));
 
             if (shared && x.id !== husband.id && x.id !== wife.id) {
               husbandSibs.push(x);
@@ -455,12 +482,11 @@ function layoutTree() {
             }
           });
 
-          row.forEach(x => {
+          row.forEach((x) => {
             if (used.has(x.id)) return;
             if (!x.parents || !wife.parents) return;
 
-            const shared =
-              x.parents.some(p => wife.parents.includes(p));
+            const shared = x.parents.some((p) => wife.parents.includes(p));
 
             if (shared && x.id !== husband.id && x.id !== wife.id) {
               wifeSibs.push(x);
@@ -473,7 +499,7 @@ function layoutTree() {
             husband,
             wife,
             husbandSibs,
-            wifeSibs
+            wifeSibs,
           });
           return;
         }
@@ -486,7 +512,7 @@ function layoutTree() {
     /* ================= CALCULATE TOTAL ROW WIDTH (⭐ NEW BALANCE PART ⭐) ================= */
     const GAP = CARD_W + H_GAP;
 
-    const unitWidths = units.map(unit => {
+    const unitWidths = units.map((unit) => {
       if (unit.type === "single") return GAP;
       const left = unit.husbandSibs.length;
       const right = unit.wifeSibs.length;
@@ -494,8 +520,7 @@ function layoutTree() {
     });
 
     const totalRowWidth =
-      unitWidths.reduce((s, w) => s + w, 0) +
-      (units.length - 1) * H_GAP;
+      unitWidths.reduce((s, w) => s + w, 0) + (units.length - 1) * H_GAP;
 
     /* ================= CENTER THIS ROW ================= */
     let cursorX = -totalRowWidth / 2;
@@ -504,7 +529,7 @@ function layoutTree() {
       if (unit.type === "single") {
         newPosMap.set(unit.member.id, {
           x: cursorX + GAP / 2,
-          y
+          y,
         });
         cursorX += GAP + H_GAP;
         return;
@@ -519,7 +544,7 @@ function layoutTree() {
       let x = cursorX;
 
       // 👨 siblings (LEFT)
-      husbandSibs.forEach(s => {
+      husbandSibs.forEach((s) => {
         newPosMap.set(s.id, { x: x + GAP / 2, y });
         x += GAP;
       });
@@ -533,7 +558,7 @@ function layoutTree() {
       x += GAP;
 
       // 👩 siblings (RIGHT)
-      wifeSibs.forEach(s => {
+      wifeSibs.forEach((s) => {
         newPosMap.set(s.id, { x: x + GAP / 2, y });
         x += GAP;
       });
@@ -543,7 +568,7 @@ function layoutTree() {
   });
 
   /* ================= APPLY ================= */
-  members.forEach(m => {
+  members.forEach((m) => {
     const p = newPosMap.get(m.id);
     if (p) {
       m.x = p.x;
@@ -553,13 +578,6 @@ function layoutTree() {
 
   posMap = newPosMap;
 }
-
-
-
-
-
-
-
 
 // ================== RENDER ==================
 function layoutVisibleMembers() {
@@ -572,15 +590,20 @@ function renderTree() {
 
   const scaleBox = document.getElementById("tree-scale");
 
+  if (!scaleBox) {
+    console.error("#tree-scale element not found (renderTree)");
+    return;
+  }
+
   nodesLayer.innerHTML = "";
   const visibleMembers = layoutVisibleMembers();
   if (!visibleMembers.length) return;
 
   // 1) render cards in tree space
-  visibleMembers.forEach(m => {
+  visibleMembers.forEach((m) => {
     const card = createFamilyCard(m);
-    card.style.left = (m.x - CARD_W / 2) + "px";
-    card.style.top  = (m.y - CARD_H / 2) + "px";
+    card.style.left = m.x - CARD_W / 2 + "px";
+    card.style.top = m.y - CARD_H / 2 + "px";
     nodesLayer.appendChild(card);
   });
 
@@ -603,8 +626,7 @@ function renderTree() {
     const offsetY = (viewH - treeH * scale) / 2;
 
     // 4) IMPORTANT: order is center -> scale -> shift-to-zero
-    scaleBox.style.transform =
-      `translate(${offsetX}px, ${offsetY}px) scale(${scale}) translate(${-bounds.minX}px, ${-bounds.minY}px)`;
+    scaleBox.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale}) translate(${-bounds.minX}px, ${-bounds.minY}px)`;
 
     // 5) SVG must live in the SAME tree space as nodes (before transform)
     svg.setAttribute("width", treeW);
@@ -619,10 +641,6 @@ function renderTree() {
     drawLines(visibleMembers);
   });
 }
-
-
-
-
 
 // function resizeCanvas() {
 //   const rect = treeRoot.getBoundingClientRect();
@@ -669,9 +687,9 @@ function createFamilyCard(member) {
   const btnFather = makeBtn("Эцэг нэмэх");
   const btnMother = makeBtn("Эх нэмэх");
   const btnSpouse = makeBtn("Хань нэмэх");
-  const btnChild  = makeBtn("Хүүхэд нэмэх");
+  const btnChild = makeBtn("Хүүхэд нэмэх");
   const btnDetail = makeBtn("Дэлгэрэнгүй мэдээлэл");
-  const btnEdit   = makeBtn("Мэдээлэл засах");
+  const btnEdit = makeBtn("Мэдээлэл засах");
   const btnDelete = makeBtn("Устгах", "add-pill danger");
 
   menu.append(
@@ -725,13 +743,7 @@ function createFamilyCard(member) {
 
   /* ================= COMPOSE ================= */
 
-  card.append(
-    btnUp,
-    btnAdd,
-    menu,
-    avatarWrap,
-    nameBox
-  );
+  card.append(btnUp, btnAdd, menu, avatarWrap, nameBox);
 
   /* ================= CLICK LOGIC ================= */
 
@@ -803,12 +815,11 @@ function createFamilyCard(member) {
     e.stopPropagation();
     openPersonModal("add-spouse", member, {
       name: "Хань",
-      sex: "",        // ❌ preset sex БАЙХГҮЙ
-      photoUrl: "",   // ❌ preset зураг БАЙХГҮЙ
+      sex: "", // ❌ preset sex БАЙХГҮЙ
+      photoUrl: "", // ❌ preset зураг БАЙХГҮЙ
     });
     closeAllMenus();
   };
-
 
   btnChild.onclick = (e) => {
     e.stopPropagation();
@@ -980,10 +991,9 @@ function submitPersonForm() {
       break;
   }
 
-  saveTreeToDB();  // бүх өөрчлөлтийг файлд хадгална
+  saveTreeToDB(); // бүх өөрчлөлтийг файлд хадгална
   closePersonModal();
   scheduleRender();
-
 }
 
 // ================== ADD / EDIT / DELETE ==================
@@ -1023,10 +1033,8 @@ function addFatherWithData(child, data) {
   }
 
   members.push(father);
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 }
-
-
 
 function addMotherWithData(child, data) {
   const existingMother = getParentBySex(child, "female");
@@ -1057,9 +1065,8 @@ function addMotherWithData(child, data) {
   }
 
   members.push(mother);
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 }
-
 
 function addSpouseWithData(person, data) {
   if (person.spouseId) {
@@ -1090,7 +1097,7 @@ function addSpouseWithData(person, data) {
   person.spouseId = spouse.id;
 
   // 🔗 хүүхдүүдийг sync
-  person.children.forEach(cid => {
+  person.children.forEach((cid) => {
     const child = findMember(cid);
     if (!child) return;
 
@@ -1110,12 +1117,8 @@ function addSpouseWithData(person, data) {
   });
 
   members.push(spouse);
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 }
-
-
-
-
 
 function addChildWithData(parent, data) {
   const sex = normalizeSex(data.sex);
@@ -1163,33 +1166,24 @@ function addChildWithData(parent, data) {
 
   // existing children of this parent (siblings group)
   const siblings = parent.children
-    .map(cid => findMember(cid))
-    .filter(m => m && m.id !== child.id);
+    .map((cid) => findMember(cid))
+    .filter((m) => m && m.id !== child.id);
 
   // check if this parent already has a husband / wife child
-  const husbandSibling = siblings.find(
-    s => s.sex === "male" && s.spouseId
-  );
-  const wifeSibling = siblings.find(
-    s => s.sex === "female" && s.spouseId
-  );
+  const husbandSibling = siblings.find((s) => s.sex === "male" && s.spouseId);
+  const wifeSibling = siblings.find((s) => s.sex === "female" && s.spouseId);
 
   if (husbandSibling) {
     // husband's parents adding child
-    child._lineageSide = "left";   // FRONT
+    child._lineageSide = "left"; // FRONT
   } else if (wifeSibling) {
     // wife's parents adding child
-    child._lineageSide = "right";  // BACK
+    child._lineageSide = "right"; // BACK
   }
 
   members.push(child);
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 }
-
-
-
-
-
 
 function editPersonWithData(member, data) {
   let sexChanged = false;
@@ -1221,15 +1215,10 @@ function editPersonWithData(member, data) {
 
   if (data.photoUrl?.trim()) {
     member.photoUrl = data.photoUrl.trim();
-  } 
-  else if (sexChanged && !hasCustomPhoto) {
+  } else if (sexChanged && !hasCustomPhoto) {
     member.photoUrl = defaultPhotoBySex(member.sex);
   }
 }
-
-
-
-
 
 function deletePerson(member) {
   if (member.level === 0 && members.length === 1) {
@@ -1241,26 +1230,26 @@ function deletePerson(member) {
   const id = member.id;
 
   // 1) Remove the member itself
-  members = members.filter(m => m.id !== id);
+  members = members.filter((m) => m.id !== id);
 
   // 2) Remove references + spouse links
-  members.forEach(m => {
-    m.children = (m.children || []).filter(cid => cid !== id);
-    m.parents  = (m.parents  || []).filter(pid => pid !== id);
+  members.forEach((m) => {
+    m.children = (m.children || []).filter((cid) => cid !== id);
+    m.parents = (m.parents || []).filter((pid) => pid !== id);
     if (m.spouseId === id) m.spouseId = null;
   });
 
   // 3) Fix child levels when their parent was deleted
   //    For every remaining node, recompute level from any existing parent if possible.
-  const byId = new Map(members.map(m => [m.id, m]));
+  const byId = new Map(members.map((m) => [m.id, m]));
 
-  members.forEach(child => {
-    const pids = (child.parents || []).filter(pid => byId.has(pid));
+  members.forEach((child) => {
+    const pids = (child.parents || []).filter((pid) => byId.has(pid));
     if (!pids.length) return; // no parent left → keep current level (no data loss)
 
     const parentLevels = pids
-      .map(pid => byId.get(pid).level)
-      .filter(v => typeof v === "number" && isFinite(v));
+      .map((pid) => byId.get(pid).level)
+      .filter((v) => typeof v === "number" && isFinite(v));
 
     if (!parentLevels.length) return;
 
@@ -1269,13 +1258,11 @@ function deletePerson(member) {
   });
 
   // 4) Normalize parents everywhere (no data loss after Fix #1)
-  members.forEach(m => normalizeParents(m));
+  members.forEach((m) => normalizeParents(m));
 
   saveTreeToDB();
   scheduleRender();
 }
-
-
 
 // ================== THEME BUTTON ==================
 function setupThemeButton() {
@@ -1287,14 +1274,13 @@ function setupThemeButton() {
   });
 }
 
-
 function getCardHalfHeight() {
   const card = document.querySelector(".family-card");
   if (!card) return CARD_H / 2;
   return card.offsetHeight / 2;
 }
 function safeLine(svg, x1, y1, x2, y2) {
-  if (![x1, y1, x2, y2].every(v => typeof v === "number" && isFinite(v))) {
+  if (![x1, y1, x2, y2].every((v) => typeof v === "number" && isFinite(v))) {
     return;
   }
 
@@ -1309,16 +1295,15 @@ function safeLine(svg, x1, y1, x2, y2) {
   svg.appendChild(line);
 }
 
-
 function drawLines(visibleMembers) {
   if (!svg) return;
   svg.innerHTML = "";
 
-  const visibleIds = new Set(visibleMembers.map(m => m.id));
+  const visibleIds = new Set(visibleMembers.map((m) => m.id));
   const GAP = 18;
 
   /* ================= SPOUSE (HORIZONTAL) ================= */
-  visibleMembers.forEach(m => {
+  visibleMembers.forEach((m) => {
     if (!m.spouseId || !visibleIds.has(m.spouseId)) return;
     if (m.id > m.spouseId) return; // draw once
 
@@ -1331,11 +1316,11 @@ function drawLines(visibleMembers) {
   });
 
   /* ================= CHILD → PARENTS (CLEAN & BALANCED) ================= */
-  visibleMembers.forEach(child => {
+  visibleMembers.forEach((child) => {
     const parentRects = (child.parents || [])
-      .map(pid => findMember(pid))
-      .filter(p => p && visibleIds.has(p.id))
-      .map(p => cardRect(p.id))
+      .map((pid) => findMember(pid))
+      .filter((p) => p && visibleIds.has(p.id))
+      .map((p) => cardRect(p.id))
       .filter(Boolean);
 
     if (!parentRects.length) return;
@@ -1348,18 +1333,18 @@ function drawLines(visibleMembers) {
       parentRects.reduce((s, p) => s + p.cx, 0) / parentRects.length;
 
     // lowest parent bottom
-    const parentsBottomY = Math.max(...parentRects.map(p => p.bottom));
+    const parentsBottomY = Math.max(...parentRects.map((p) => p.bottom));
     const midY = parentsBottomY + GAP;
 
     // 1) vertical from each parent to midY
-    parentRects.forEach(p => {
+    parentRects.forEach((p) => {
       safeLine(svg, p.cx, p.bottom, p.cx, midY);
     });
 
     // 2) horizontal bar if 2+ parents
     if (parentRects.length > 1) {
-      const minX = Math.min(...parentRects.map(p => p.cx));
-      const maxX = Math.max(...parentRects.map(p => p.cx));
+      const minX = Math.min(...parentRects.map((p) => p.cx));
+      const maxX = Math.max(...parentRects.map((p) => p.cx));
       safeLine(svg, minX, midY, maxX, midY);
     }
 
@@ -1373,17 +1358,10 @@ function drawLines(visibleMembers) {
   });
 }
 
-
-
-
-
-
-
-
 // ================== PROFILE VIEW ==================
 
 function openProfileView(member) {
-  currentProfileMember = member; 
+  currentProfileMember = member;
   const backdrop = document.getElementById("profile-backdrop");
   const view = document.getElementById("profile-view");
 
@@ -1429,11 +1407,7 @@ function openProfileView(member) {
   if (sexEl) {
     sexEl.textContent =
       "Хүйс: " +
-      (member.sex === "male"
-        ? "Эр"
-        : member.sex === "female"
-        ? "Эм"
-        : "—");
+      (member.sex === "male" ? "Эр" : member.sex === "female" ? "Эм" : "—");
   }
 
   // dates & place
@@ -1475,99 +1449,98 @@ function closeProfileView() {
 }
 
 // close handlers (safe)
-document.getElementById("profile-close")?.addEventListener(
-  "click",
-  closeProfileView
-);
+document
+  .getElementById("profile-close")
+  ?.addEventListener("click", closeProfileView);
 
-document.getElementById("profile-backdrop")?.addEventListener(
-  "click",
-  closeProfileView
-);
+document
+  .getElementById("profile-backdrop")
+  ?.addEventListener("click", closeProfileView);
 let currentProfileMember = null;
-
-
 
 function closeProfileEdit() {
   document.getElementById("profile-edit-backdrop").hidden = true;
   document.getElementById("profile-edit").hidden = true;
 }
 
-document.getElementById("profile-edit-close")
+document
+  .getElementById("profile-edit-close")
   ?.addEventListener("click", closeProfileEdit);
 
-document.getElementById("profile-edit-backdrop")
+document
+  .getElementById("profile-edit-backdrop")
   ?.addEventListener("click", closeProfileEdit);
 
-document.getElementById("profile-edit-save")
-  ?.addEventListener("click", () => {
-    if (!currentProfileMember) return;
-    if (preview && !preview.hidden) {
-      currentProfileMember.photoUrl = preview.src;
-    }
-    currentProfileMember.familyName =
-      document.getElementById("edit-familyName").value.trim();
+document.getElementById("profile-edit-save")?.addEventListener("click", () => {
+  if (!currentProfileMember) return;
+  if (preview && !preview.hidden) {
+    currentProfileMember.photoUrl = preview.src;
+  }
+  currentProfileMember.familyName = document
+    .getElementById("edit-familyName")
+    .value.trim();
 
-    currentProfileMember.fatherName =
-      document.getElementById("edit-fatherName").value.trim();
+  currentProfileMember.fatherName = document
+    .getElementById("edit-fatherName")
+    .value.trim();
 
-    currentProfileMember.birthDate =
-      document.getElementById("edit-birthDate").value;
+  currentProfileMember.birthDate =
+    document.getElementById("edit-birthDate").value;
 
-    currentProfileMember.deathDate =
-      document.getElementById("edit-deathDate").value;
+  currentProfileMember.deathDate =
+    document.getElementById("edit-deathDate").value;
 
-    currentProfileMember.education =
-      document.getElementById("edit-education").value.trim();
+  currentProfileMember.education = document
+    .getElementById("edit-education")
+    .value.trim();
 
-    currentProfileMember.position =
-      document.getElementById("edit-position").value.trim();
+  currentProfileMember.position = document
+    .getElementById("edit-position")
+    .value.trim();
 
-    currentProfileMember.achievements =
-      document.getElementById("edit-achievements")
-        .value
-        .split("\n")
-        .map(x => x.trim())
-        .filter(Boolean);
+  currentProfileMember.achievements = document
+    .getElementById("edit-achievements")
+    .value.split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
 
-    // 🔽 🔽 🔽 ЭНД birthPlace LOGIC-ОО ОРУУЛНА 🔽 🔽 🔽
-    const country = document.getElementById("edit-country")?.value;
-    const province = document.getElementById("edit-province")?.value;
-    const soum = document.getElementById("edit-soum")?.value;
-    const foreign = document.getElementById("edit-foreign-place")?.value;
+  // 🔽 🔽 🔽 ЭНД birthPlace LOGIC-ОО ОРУУЛНА 🔽 🔽 🔽
+  const country = document.getElementById("edit-country")?.value;
+  const province = document.getElementById("edit-province")?.value;
+  const soum = document.getElementById("edit-soum")?.value;
+  const foreign = document.getElementById("edit-foreign-place")?.value;
 
-    if (country === "MN") {
-      currentProfileMember.birthPlace =
-        [province, soum].filter(Boolean).join(", ");
-    } else if (country === "OTHER") {
-      currentProfileMember.birthPlace = foreign?.trim() || "";
-    }
+  if (country === "MN") {
+    currentProfileMember.birthPlace = [province, soum]
+      .filter(Boolean)
+      .join(", ");
+  } else if (country === "OTHER") {
+    currentProfileMember.birthPlace = foreign?.trim() || "";
+  }
 
-    // 🔼 🔼 🔼 ЭНД ДУУСНА 🔼 🔼 🔼
+  // 🔼 🔼 🔼 ЭНД ДУУСНА 🔼 🔼 🔼
 
-    saveTreeToDB();
-    openProfileView(currentProfileMember);
-    closeProfileEdit();
-  });
+  saveTreeToDB();
+  openProfileView(currentProfileMember);
+  closeProfileEdit();
+});
 
 // ================== PROFILE EDIT BUTTON ==================
-document.getElementById("profile-edit-btn")
-  ?.addEventListener("click", () => {
-    if (currentProfileMember) {
-      openProfileEdit(currentProfileMember);
-    }
-  });
+document.getElementById("profile-edit-btn")?.addEventListener("click", () => {
+  if (currentProfileMember) {
+    openProfileEdit(currentProfileMember);
+  }
+});
 
 // ================== BIRTH PLACE LOGIC (STEP 1) ==================
 
-
 // ================== BIRTH PLACE DROPDOWN LOGIC ==================
-const countrySelect  = document.getElementById("edit-country");
+const countrySelect = document.getElementById("edit-country");
 const provinceSelect = document.getElementById("edit-province");
-const soumSelect     = document.getElementById("edit-soum");
-const foreignInput   = document.getElementById("edit-foreign-place");
-const mongoliaBlock  = document.getElementById("mongolia-fields");
-const foreignBlock   = document.getElementById("foreign-fields");
+const soumSelect = document.getElementById("edit-soum");
+const foreignInput = document.getElementById("edit-foreign-place");
+const mongoliaBlock = document.getElementById("mongolia-fields");
+const foreignBlock = document.getElementById("foreign-fields");
 
 if (countrySelect) {
   countrySelect.addEventListener("change", () => {
@@ -1576,7 +1549,7 @@ if (countrySelect) {
     // === Монгол ===
     if (val === "MN") {
       mongoliaBlock.hidden = false;
-      foreignBlock.hidden  = true;
+      foreignBlock.hidden = true;
 
       provinceSelect.disabled = false;
       soumSelect.disabled = false;
@@ -1585,7 +1558,7 @@ if (countrySelect) {
       provinceSelect.innerHTML =
         `<option value="">— Сонгох —</option>` +
         Object.keys(window.MONGOLIA)
-          .map(p => `<option value="${p}">${p}</option>`)
+          .map((p) => `<option value="${p}">${p}</option>`)
           .join("");
 
       soumSelect.innerHTML = `<option value="">— Сонгох —</option>`;
@@ -1594,7 +1567,7 @@ if (countrySelect) {
     // === Гадаад улс ===
     else if (val === "OTHER") {
       mongoliaBlock.hidden = true;
-      foreignBlock.hidden  = false;
+      foreignBlock.hidden = false;
 
       provinceSelect.value = "";
       soumSelect.value = "";
@@ -1603,7 +1576,7 @@ if (countrySelect) {
     // === Сонгоогүй ===
     else {
       mongoliaBlock.hidden = true;
-      foreignBlock.hidden  = true;
+      foreignBlock.hidden = true;
     }
   });
 }
@@ -1615,29 +1588,29 @@ provinceSelect?.addEventListener("change", () => {
 
   soumSelect.innerHTML =
     `<option value="">— Сонгох —</option>` +
-    soums.map(s => `<option value="${s}">${s}</option>`).join("");
+    soums.map((s) => `<option value="${s}">${s}</option>`).join("");
 });
 
 function syncBirthPlaceUI(member) {
-  const countrySelect  = document.getElementById("edit-country");
+  const countrySelect = document.getElementById("edit-country");
   const provinceSelect = document.getElementById("edit-province");
-  const soumSelect     = document.getElementById("edit-soum");
-  const foreignInput   = document.getElementById("edit-foreign-place");
-  const mongoliaBlock  = document.getElementById("mongolia-fields");
-  const foreignBlock   = document.getElementById("foreign-fields");
+  const soumSelect = document.getElementById("edit-soum");
+  const foreignInput = document.getElementById("edit-foreign-place");
+  const mongoliaBlock = document.getElementById("mongolia-fields");
+  const foreignBlock = document.getElementById("foreign-fields");
 
   if (!countrySelect) return;
 
   // RESET
   mongoliaBlock.hidden = true;
-  foreignBlock.hidden  = true;
+  foreignBlock.hidden = true;
 
   provinceSelect.disabled = true;
   soumSelect.disabled = true;
 
   // === Монгол ===
   if (member.birthPlace) {
-    const parts = member.birthPlace.split(",").map(x => x.trim());
+    const parts = member.birthPlace.split(",").map((x) => x.trim());
 
     if (parts.length >= 1 && window.MONGOLIA[parts[0]]) {
       countrySelect.value = "MN";
@@ -1650,7 +1623,7 @@ function syncBirthPlaceUI(member) {
       provinceSelect.innerHTML =
         `<option value="">— Сонгох —</option>` +
         Object.keys(window.MONGOLIA)
-          .map(p => `<option value="${p}">${p}</option>`)
+          .map((p) => `<option value="${p}">${p}</option>`)
           .join("");
 
       provinceSelect.value = parts[0];
@@ -1674,7 +1647,6 @@ function syncBirthPlaceUI(member) {
   }
 }
 
-
 function openProfileEdit(member) {
   currentProfileMember = member;
 
@@ -1684,8 +1656,9 @@ function openProfileEdit(member) {
   document.getElementById("edit-deathDate").value = member.deathDate || "";
   document.getElementById("edit-education").value = member.education || "";
   document.getElementById("edit-position").value = member.position || "";
-  document.getElementById("edit-achievements").value =
-    (member.achievements || []).join("\n");
+  document.getElementById("edit-achievements").value = (
+    member.achievements || []
+  ).join("\n");
 
   // ⭐ ТӨРСӨН ГАЗАР UI sync
   syncBirthPlaceUI(member);
@@ -1699,18 +1672,16 @@ function openProfileEdit(member) {
       preview.src = member.photoUrl;
       preview.hidden = false;
       placeholder.hidden = true;
-      urlInput.value =
-        member.photoUrl.startsWith("http") ? member.photoUrl : "";
+      urlInput.value = member.photoUrl.startsWith("http")
+        ? member.photoUrl
+        : "";
     } else {
       preview.hidden = true;
       placeholder.hidden = false;
       urlInput.value = "";
     }
   }
-
-
 }
-
 
 // ================== PROFILE PHOTO LOGIC ==================
 const drop = document.getElementById("photo-drop");
@@ -1776,20 +1747,29 @@ async function loadTreeFromDB() {
   if (!user) return;
 
   try {
+    const token = await user.getIdToken(); // ✅ ЗААВАЛ ЭНД БАЙХ ЁСТОЙ
+
     const res = await fetch("/api/tree/load", {
       headers: {
         "Content-Type": "application/json",
-        "x-user-uid": user.uid
-      }
+        Authorization: `Bearer ${token}`, // ✅ зөв
+      },
     });
 
+    if (!res.ok) {
+      console.error("LOAD FAILED:", res.status, await res.text());
+      members = [];
+      createDefaultRoot();
+      repairTreeData();
+      nextId = members.reduce((mx, m) => Math.max(mx, m.id), 0) + 1;
+      scheduleRender();
+      return;
+    }
+
     const data = await res.json();
-    if (!data || !data.ok) return;
 
-    const rawMembers = Array.isArray(data.members) ? data.members : [];
-
-    // 1️⃣ Restore members
-    members = rawMembers.map(raw => {
+    const rawMembers = Array.isArray(data?.members) ? data.members : [];
+    members = rawMembers.map((raw) => {
       const m = new FamilyMember(raw);
       m.parents = Array.isArray(raw.parents) ? raw.parents.slice() : [];
       m.children = Array.isArray(raw.children) ? raw.children.slice() : [];
@@ -1798,23 +1778,17 @@ async function loadTreeFromDB() {
       return m;
     });
 
-    // 2️⃣ If empty → create root
-    if (!members.length) {
-      createDefaultRoot();
-    }
+    if (!members.length) createDefaultRoot();
 
-    // 3️⃣ Repair data consistency (CRITICAL)
     repairTreeData();
-
-    // 4️⃣ Recalculate nextId safely
-    nextId =
-      members.reduce((max, m) => (m.id > max ? m.id : max), 0) + 1;
-
-    // 5️⃣ Render AFTER data is fully clean
+    nextId = members.reduce((max, m) => (m.id > max ? m.id : max), 0) + 1;
     scheduleRender();
-
-
   } catch (err) {
     console.error("DB-ээс tree ачааллахад алдаа:", err);
+    members = [];
+    createDefaultRoot();
+    repairTreeData();
+    nextId = members.reduce((mx, m) => Math.max(mx, m.id), 0) + 1;
+    scheduleRender();
   }
-}  
+}

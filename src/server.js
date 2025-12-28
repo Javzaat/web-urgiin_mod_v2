@@ -1,12 +1,21 @@
 require("dotenv").config();
 
+const { getDB } = require("./mongo");
+const { requireAuth } = require("./requireAuth");
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-const pool = require("./db"); // ✅ ганц DB connection
 
 const app = express();
+
+//  Mongo connection test (startup)
+getDB().catch((err) => {
+  console.error("❌ MongoDB connection failed:", err.message);
+});
+
+const pool = require("./db"); // ✅ ганц DB connection
 
 /* ================== MIDDLEWARE ================== */
 app.use(cors());
@@ -20,99 +29,43 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "Undes backend running" });
 });
 
-/* ================== SAVE TREE ================== */
-app.post("/api/tree/save", async (req, res) => {
-  const firebaseUid = req.headers["x-user-uid"];
-  const members = req.body.members;
-
-  if (!firebaseUid) {
-    return res.status(401).json({ ok: false, error: "NO_UID" });
-  }
+/* ================== SAVE TREE (Mongo + Auth) ================== */
+app.post("/api/tree/save", requireAuth, async (req, res) => {
+  const uid = req.user.uid;
+  const members = req.body?.members;
 
   if (!Array.isArray(members)) {
     return res.status(400).json({ ok: false, error: "INVALID_DATA" });
   }
 
   try {
-    /* 1. user upsert */
-    const userRes = await pool.query(
-      `
-      INSERT INTO users (firebase_uid)
-      VALUES ($1)
-      ON CONFLICT (firebase_uid)
-      DO UPDATE SET firebase_uid = EXCLUDED.firebase_uid
-      RETURNING id
-      `,
-      [firebaseUid]
+    const db = await getDB();
+    await db.collection("trees").updateOne(
+      { uid },
+      { $set: { uid, members, updatedAt: new Date(), version: 1 } },
+      { upsert: true }
     );
-
-    const userId = userRes.rows[0].id;
-
-    /* 2. tree upsert */
-    await pool.query(
-      `
-      INSERT INTO family_trees (user_id, data)
-      VALUES ($1, $2)
-      ON CONFLICT (user_id)
-      DO UPDATE
-        SET data = EXCLUDED.data,
-            updated_at = NOW()
-      `,
-      [userId, members]
-    );
-
     res.json({ ok: true });
   } catch (err) {
-      console.error("SAVE TREE ERROR:");
-      console.error(err.message);
-      console.error(err.stack);
-
-      res.status(500).json({
-        ok: false,
-        error: err.message
-      });
-    }
-
+    console.error("SAVE TREE ERROR:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
-/* ================== LOAD TREE ================== */
-app.get("/api/tree/load", async (req, res) => {
-  const firebaseUid = req.headers["x-user-uid"];
-
-  if (!firebaseUid) {
-    return res.status(401).json({ ok: false, error: "NO_UID" });
-  }
+/* ================== LOAD TREE (Mongo + Auth) ================== */
+app.get("/api/tree/load", requireAuth, async (req, res) => {
+  const uid = req.user.uid;
 
   try {
-    const userRes = await pool.query(
-      "SELECT id FROM users WHERE firebase_uid = $1",
-      [firebaseUid]
-    );
-
-    if (userRes.rows.length === 0) {
-      return res.json({ ok: true, members: [] });
-    }
-
-    const userId = userRes.rows[0].id;
-
-    const treeRes = await pool.query(
-      "SELECT data FROM family_trees WHERE user_id = $1",
-      [userId]
-    );
-
-    if (treeRes.rows.length === 0) {
-      return res.json({ ok: true, members: [] });
-    }
-
-    res.json({
-      ok: true,
-      members: treeRes.rows[0].data,
-    });
+    const db = await getDB();
+    const doc = await db.collection("trees").findOne({ uid });
+    res.json({ ok: true, members: doc?.members || [] });
   } catch (err) {
     console.error("LOAD TREE ERROR:", err);
-    res.status(500).json({ ok: false });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 
 /* ================== START ================== */
 const PORT = process.env.PORT || 3000;
