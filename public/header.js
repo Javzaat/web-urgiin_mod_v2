@@ -13,6 +13,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+
 document.querySelectorAll("#main-nav a").forEach((a) => {
   a.addEventListener("click", () => {
     header.classList.remove("is-open");
