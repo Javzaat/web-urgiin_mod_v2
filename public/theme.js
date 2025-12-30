@@ -20,6 +20,7 @@
 
   // эхлээд icon-оо тааруулна
   syncThemeIcon();
+  
 
   btnTheme.addEventListener("click", (e) => {
     e.stopPropagation();
