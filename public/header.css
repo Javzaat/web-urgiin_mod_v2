@@ -1,11 +1,3 @@
-:root {
-  --bg: #f5efe3;
-  --panel: #ffffff;
-  --text: #1f1f1f;
-  --txt: #6b5b4b;
-  --brand: #5c4033;
-  --border: #e5d7c4;
-}
 
 * {
   box-sizing: border-box;
@@ -396,4 +388,296 @@ section {
 
 .logout-btn.confirm:hover {
   filter: brightness(1.1);
+}
+
+/* ===== MOBILE: header buttons багтаах fix ===== */
+@media (max-width: 769px) {
+  .site-header {
+    /* mobile дээр padding бага болгоно */
+    padding: 10px 12px;
+    gap: 10px;
+    grid-template-columns: auto auto 1fr; /* logo | toggle | buttons */
+  }
+
+  /* Welcome текст зай иддэг тул mobile дээр нуучих */
+  #welcome-text {
+    display: none !important;
+  }
+
+  /* Buttons хэсгийг заавал баруун талд багтаана */
+  .buttons {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;       /* 2 мөр болохоос хамгаална */
+    min-width: 0;            /* grid дотор агших боломж өгнө */
+  }
+
+  
+  /* "Миний мод" линк/товч их зай авдаг бол icon-like болгох эсвэл жижигрүүлэх */
+  #btn-my-tree button {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    text-decoration: none !important;
+  }
+
+  /* Нэвтрэх/Гарах товчнуудыг жижигрүүлнэ */
+  #btn-open-auth,
+  #btn-logout {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+  }
+
+  /* Theme товчийг жижиг болгож багтаана */
+  .theme-btn {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 16px !important;
+    box-shadow: none; /* хүсвэл */
+  }
+}
+
+/* Илүү жижиг дэлгэц (жишээ: 360px) */
+@media (max-width: 380px) {
+  /* хамгийн жижиг дээр зарим текст товчийг “нарийхан” болгоно */
+  #btn-open-auth,
+  #btn-logout,
+  #btn-my-tree button {
+    padding: 7px 8px !important;
+    font-size: 12px !important;
+  }
+
+  .theme-btn {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+.theme-btn {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  overflow: hidden;
+}
+
+.theme-btn img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 769px) {
+  .theme-btn img {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ================= DARK HEADER OVERRIDES ================= */
+body.dark .site-header{
+  background: rgba(11,18,32,0.80);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+
+body.dark .logo span{ color: var(--text); }
+body.dark .logo img{ mix-blend-mode: normal; }
+
+body.dark .nav-list a{ color: var(--txt); }
+body.dark .nav-list a:hover,
+body.dark .nav-list a.active{ color: var(--text); }
+body.dark .nav-list a.active::after{ background: var(--brand); }
+
+/* mobile nav drawer */
+body.dark .nav-list{
+  background: rgba(16,31,53,0.98);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+}
+body.dark .nav-list li{
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+/* header buttons */
+body.dark .buttons button{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+body.dark .buttons button:hover{
+  background: rgba(255,255,255,0.10);
+}
+
+body.dark #welcome-text{ color: var(--txt); }
+
+body.dark .btn-logout{
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--txt) !important;
+}
+body.dark .btn-logout:hover{
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--text) !important;
+}
+
+/* theme button */
+body.dark .theme-btn{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+/* ===== Fix: Desktop дээр nav-ийн арын background-ийг устгах (dark mode) ===== */
+@media (min-width: 770px) {
+  body.dark .nav,
+  body.dark .nav-list {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  body.dark .nav-list a {
+    background: transparent !important;
+  }
+}
+
+/* ===== Mobile drawer дээр background байж болно (зөвхөн нээгдэх үед) ===== */
+@media (max-width: 769px) {
+  body.dark .site-header.is-open .nav-list {
+    background: rgba(16, 31, 53, 0.98) !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.55) !important;
+  }
+}
+
+/* ================= MENU (HEADER RIGHT) FIX ================= */
+
+/* 1) Toggle button-ийн цагаан дөрвөлжин background-ийг арилгах */
+.nav-toggle{
+  background: transparent !important;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+body.dark .nav-toggle{
+  background: rgba(255,255,255,0.04) !important;
+  border-color: var(--border);
+}
+
+/* 2) Header доторх бүх зүйл нэг өндөртэй, төвтэй харагдах */
+.site-header{
+  min-height: 56px;
+}
+.logo,
+.buttons{
+  align-self: center;
+}
+
+/* 3) Buttons хэсгийг “toolbar” шиг болгох */
+.buttons{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* линк доторх button baseline эвдрэхээс хамгаална */
+/* ✅ hidden үед display:none хэвээр ажиллана */
+#btn-my-tree:not([hidden]) {
+  display: inline-flex;
+}
+
+
+/* 4) Баруун талын товчнууд нэг хэвийн харагдах (light) */
+.buttons button{
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+
+/* 5) Dark дээр товчнуудын “өөр өнгөтэй хайрцаг” мэдрэмжийг багасгах */
+body.dark .buttons button{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+body.dark .buttons button:hover{
+  background: rgba(255,255,255,0.10);
+}
+
+/* 6) Theme button яг toolbar-ын хэмжээнд тааруулах */
+.theme-btn{
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+
+/* 7) Mobile дээр menu-ийн зайг зөв хуваарилах */
+@media (max-width: 769px){
+  .site-header{
+    grid-template-columns: auto auto 1fr; /* logo | toggle | buttons */
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  /* welcome text зай идэхээс хамгаална */
+  #welcome-text{ display:none !important; }
+
+  .buttons{
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  /* Хэт жижиг дэлгэц дээр товчнууд арай жижиг */
+  .buttons button{
+    height: 34px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .theme-btn{
+    width: 34px !important;
+    height: 34px !important;
+  }
+}
+
+/* ================= DARK: LOGOUT POPUP ================= */
+body.dark .logout-backdrop{
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+body.dark .logout-box{
+  background: rgba(17, 24, 39, 0.92);  /* dark panel */
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+}
+
+body.dark .logout-box p{
+  color: var(--text);
+}
+
+/* Buttons */
+body.dark .logout-btn{
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+body.dark .logout-btn.cancel{
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+body.dark .logout-btn.cancel:hover{
+  background: rgba(255,255,255,0.10);
+}
+
+body.dark .logout-btn.confirm{
+  background: var(--brand);
+  color: #111;
+}
+
+body.dark .logout-btn.confirm:hover{
+  filter: brightness(1.05);
 }

@@ -64,6 +64,29 @@ btnLogin?.addEventListener("click", openModal);
 closeBtn?.addEventListener("click", closeModal);
 back?.addEventListener("click", closeModal);
 
+function setLoggedInUI(user) {
+  if (user) {
+    const name = user.displayName || user.email.split("@")[0];
+
+    if (welcomeText) {
+      welcomeText.textContent = `Тавтай морилно уу, ${name}`;
+      welcomeText.hidden = false;
+    }
+    if (btnMyTree) btnMyTree.hidden = false;  // ✅ login үед гарна
+    if (btnLogout) btnLogout.hidden = false;
+    if (btnLogin)  btnLogin.hidden  = true;
+
+  } else {
+    if (welcomeText) {
+      welcomeText.textContent = "";
+      welcomeText.hidden = true;
+    }
+    if (btnMyTree) btnMyTree.hidden = true;   // ✅ logout үед алга
+    if (btnLogout) btnLogout.hidden = true;
+    if (btnLogin)  btnLogin.hidden  = false;
+  }
+}
+
 
 // ================== TABS ==================
 const formSignin = document.getElementById("form-signin");
@@ -210,28 +233,7 @@ logoutConfirm?.addEventListener("click", async () => {
 
 // ======================= AUTH STATE =======================
 onAuthStateChanged(auth, (user) => {
-  if (user) {
-    const name = user.displayName || user.email.split("@")[0];
-
-    if (welcomeText) {
-      welcomeText.textContent = `Тавтай морилно уу, ${name}`;
-      welcomeText.hidden = false;
-    }
-
-    if (btnMyTree) btnMyTree.hidden = false;
-    if (btnLogout) btnLogout.hidden = false;
-    if (btnLogin)  btnLogin.hidden  = true;
-
-  } else {
-    if (welcomeText) {
-      welcomeText.textContent = "";
-      welcomeText.hidden = true;
-    }
-
-    if (btnMyTree) btnMyTree.hidden = true;
-    if (btnLogout) btnLogout.hidden = true;
-    if (btnLogin)  btnLogin.hidden  = false;
-  }
+  setLoggedInUI(user);
 });
 
 

@@ -16,7 +16,6 @@
   </head>
 
   <body>
-
     <!-- ================= HEADER ================= -->
     <header class="site-header">
       <div class="logo">
@@ -46,14 +45,16 @@
 
       <div class="buttons">
         <span id="welcome-text" hidden></span>
-        <a id="btn-my-tree" href="family-tree.html" hidden><button>Миний мод</button></a>
+        <a id="btn-my-tree" href="family-tree.html" hidden
+          ><button>Миний мод</button></a
+        >
         <button id="btn-open-auth">Нэвтрэх</button>
         <button id="btn-logout" class="btn-logout" hidden>Гарах</button>
-        <button id="btn-theme" class="theme-btn">🌙</button>
-
+        <button id="btn-theme" class="theme-btn" aria-label="Theme toggle">
+          <img id="theme-icon" src="img/moon.png" alt="Theme icon" />
+        </button>
       </div>
     </header>
-
 
     <!-- ================= FAMILY SECTION ================= -->
     <section class="family" id="family">
@@ -73,7 +74,6 @@
       </div>
     </section>
 
-
     <!-- ================= WHAT IS FAMILY TREE ================= -->
     <section id="what" class="what">
       <div class="what-media" aria-hidden="true">
@@ -90,7 +90,7 @@
         </p>
       </div>
     </section>
-        <!-- ================= IMPORTANCE ================= -->
+    <!-- ================= IMPORTANCE ================= -->
     <section id="importance" class="importance">
       <h2>Яагаад ургийн мод ашиглах хэрэгтэй вэ?</h2>
 
@@ -135,7 +135,6 @@
         </article>
       </div>
     </section>
-
 
     <!-- ================= INSTRUCTIONS ================= -->
     <section class="instructions" id="instructions">
@@ -183,7 +182,6 @@
       </div>
     </section>
 
-
     <!-- ================= PAYMENT ================= -->
     <section class="payment" id="payment">
       <h2>Төлбөрийн нөхцөл</h2>
@@ -207,7 +205,6 @@
           <button class="cta go-tree">Эхлэх</button>
         </article>
 
-
         <article class="pay highlight">
           <h3>Plus</h3>
 
@@ -226,7 +223,6 @@
           <button class="cta">Plus болгох</button>
         </article>
 
-
         <article class="pay">
           <h3>Pro</h3>
 
@@ -244,10 +240,9 @@
 
           <button class="cta">Pro болгох</button>
         </article>
-
       </div>
     </section>
-        <!-- ================= FOOTER ================= -->
+    <!-- ================= FOOTER ================= -->
     <footer class="site-footer" id="footer">
       <div class="footer-grid">
         <div class="foot-brand">
@@ -256,8 +251,8 @@
             <span>Undes</span>
           </div>
           <p class="foot-blurb">
-            Монгол удам судрыг нэгтгэх хамтын цахим орчин. Өв соёлоо хадгалж,
-            үе удам аа холбож, ирээдүйнхэндээ үнэт түүхээ үлдээнэ.
+            Монгол удам судрыг нэгтгэх хамтын цахим орчин. Өв соёлоо хадгалж, үе
+            удам аа холбож, ирээдүйнхэндээ үнэт түүхээ үлдээнэ.
           </p>
         </div>
 
@@ -322,7 +317,6 @@
       </div>
     </footer>
 
-
     <!-- ================= AUTH MODAL ================= -->
     <div class="auth-backdrop" id="auth-backdrop" hidden></div>
 
@@ -345,10 +339,21 @@
       <!-- SIGN IN -->
       <form class="auth-form" id="form-signin">
         <label>И-мэйл</label>
-        <input type="email" id="in-email" placeholder="name@example.com" required />
+        <input
+          type="email"
+          id="in-email"
+          placeholder="name@example.com"
+          required
+        />
 
         <label>Нууц үг</label>
-        <input type="password" id="in-pass" placeholder="••••••••" required minlength="6" />
+        <input
+          type="password"
+          id="in-pass"
+          placeholder="••••••••"
+          required
+          minlength="6"
+        />
 
         <button class="cta full" type="submit">Нэвтрэх</button>
       </form>
@@ -359,7 +364,12 @@
         <input type="text" id="up-name" placeholder="Таны нэр" required />
 
         <label>И-мэйл</label>
-        <input type="email" id="up-email" placeholder="name@example.com" required />
+        <input
+          type="email"
+          id="up-email"
+          placeholder="name@example.com"
+          required
+        />
 
         <label>Нууц үг</label>
         <input
@@ -376,7 +386,6 @@
       <p class="auth-help" id="auth-msg"></p>
     </div>
 
-
     <!-- ================= SCRIPTS ================= -->
     <script>
       document.getElementById("year").textContent = new Date().getFullYear();
@@ -386,7 +395,6 @@
     <script type="module" src="auth.js"></script>
     <script src="theme.js"></script>
 
-    
     <div class="logout-backdrop" id="logout-backdrop" hidden></div>
     <div class="logout-modal" id="logout-modal" hidden>
       <div class="logout-box">
@@ -408,10 +416,9 @@
 
     <div class="success-modal" id="success-modal" hidden>
       <div class="success-box">
-        <p>Амжилттай бүртгэгдлээ!<br>Одоо нэвтэрнэ үү.</p>
+        <p>Амжилттай бүртгэгдлээ!<br />Одоо нэвтэрнэ үү.</p>
         <button id="success-ok" class="success-btn">OK</button>
       </div>
     </div>
-
   </body>
 </html>

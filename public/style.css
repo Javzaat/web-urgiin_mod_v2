@@ -1,31 +1,39 @@
 /* ========== THEME VARIABLES (LIGHT) ========== */
-:root {
-  --bg: #ffffff;
-  --bg-soft: #f6f7f9;
-  --text: #1f2937;
-  --text-soft: #6b7280;
-  --border: #e5e7eb;
-
-  --brand: #c89b3c;
-  --card: #ffffff;
+:root{
+  --bg: #f5efe3;
   --panel: #ffffff;
+  --card: #ffffff;
 
-  --shadow: 0 10px 30px rgba(0,0,0,0.1);
+  --text: #1f1f1f;
+  --txt: #6b5b4b;
+  --text-soft: #6b5b4b; /* хэрэгтэй газар ашиглана */
+
+  --brand: #5c4033;
+  --border: #e5d7c4;
+
+  --shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 
 /* ========== THEME VARIABLES (DARK) ========== */
-body.dark {
-  --bg: #0f172a;
-  --bg-soft: #111827;
-  --text: #e5e7eb;
-  --text-soft: #9ca3af;
-  --border: #1f2937;
+body.dark{
+  --bg: #0b1220;
+  --panel: #0f1a2b;
+  --card: #101f35;
+
+  --text: #e6edf6;
+  --txt: rgba(230,237,246,0.72);
+  --text-soft: rgba(230,237,246,0.62);
 
   --brand: #e6b45c;
-  --card: #111827;
-  --panel: #020617;
+  --border: rgba(255,255,255,0.10);
 
-  --shadow: 0 10px 40px rgba(0,0,0,0.6);
+  --shadow: 0 14px 44px rgba(0,0,0,0.55);
+}
+
+/* base */
+body{
+  background: var(--bg);
+  color: var(--text);
 }
 
 
@@ -142,3 +150,4 @@ body {
 .theme-btn:hover {
   filter: brightness(0.95);
 }
+

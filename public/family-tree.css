@@ -1,29 +1,8 @@
 :root {
-  --bg: #f5efe3;
-  --panel: #ffffff;
-  --text: #1f1f1f;
-  --txt: #6b5b4b;
-  --brand: #5c4033;
-  --border: #e5d7c4;
-
   --male: #4a8bff;
   --female: #ff6fa8;
   --unknown: #bba894;
-
-  --line-color: #8a6a4a;
-}
-
-/* ==== DARK THEME ==== */
-body.dark {
-  --bg: #171310;
-  --panel: #1f1711;
-  --text: #f9f3eb;
-  --txt: #dbc7b1;
-  --brand: #f2c27b;
-  --border: #3b2c1e;
-
-  --line-color: #ad9988;
-  --unknown: #9b8d7f;
+  --line-color: color-mix(in srgb, var(--brand) 55%, transparent);
 }
 
 * {
@@ -53,7 +32,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .tree-title {
@@ -107,6 +86,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: color-mix(in srgb, var(--bg) 80%, var(--panel) 20%);
 }
 
 .tree-scale {
@@ -114,10 +94,6 @@ body {
   left: 0;
   top: 0;
   transform-origin: 0 0;
-}
-
-body.dark .tree-root {
-  background: #201710;
 }
 
 .tree-root {
@@ -136,13 +112,11 @@ body.dark .tree-root {
   z-index: 1;
 }
 
-
 #tree-nodes {
   position: absolute;
   inset: 0;
   z-index: 2;
 }
-
 
 /* ===== FAMILY CARD ===== */
 
@@ -150,31 +124,31 @@ body.dark .tree-root {
   position: absolute;
   width: 150px;
   height: 190px;
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--unknown);
   border-radius: 16px;
   border: 2px solid var(--unknown);
-  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-top: 24px;
   padding-bottom: 14px;
   box-sizing: border-box;
-  color: #5c4033;
   font-size: 13px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    border-color 0.18s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
   z-index: 10;
 }
 
 body.dark .family-card {
-  background: #251a13;
-  color: #f9f3eb;
   border-color: #5b4633;
 }
 
 .family-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* Gender frame */
@@ -191,8 +165,8 @@ body.dark .family-card {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 1px solid #dcbda0;
-  background: #fff;
+  background: var(--card);
+  border: 1px solid var(--border);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -319,18 +293,17 @@ body.dark .card-age {
 
 .add-menu {
   position: absolute;
-  top: 40px;                 /* + товчны доор */
+  top: 40px; /* + товчны доор */
   right: 0;
 
   display: flex;
   flex-direction: column;
   gap: 6px;
-
-  background: #fff;
+  background: var(--card);
+  border: 1px solid var(--border);
   padding: 8px 10px;
   border-radius: 12px;
-  border: 1px solid #dcbda0;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 
   z-index: 9000;
 }
@@ -342,11 +315,11 @@ body.dark .card-age {
 .add-pill {
   white-space: nowrap;
   padding: 6px 12px;
+  background: color-mix(in srgb, var(--card) 85%, var(--brand) 15%);
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 6px;
-  background: #fffaf3;
-  border: 1px solid #dcbda0;
   font-size: 12px;
-  color: #5c4033;
   cursor: pointer;
 }
 
@@ -363,7 +336,7 @@ body.dark .add-pill {
 .person-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
   z-index: 50;
 }
@@ -372,17 +345,17 @@ body.dark .add-pill {
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(.94);
+  transform: translate(-50%, -50%) scale(0.94);
   background: var(--panel);
   border-radius: 14px;
   border: 1px solid var(--border);
   padding: 18px 18px 14px;
   width: min(360px, 92vw);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
   z-index: 60;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .2s ease, transform .2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .person-modal.show {
@@ -427,15 +400,19 @@ body.dark .add-pill {
 
 .person-actions button {
   padding: 8px 14px;
+  background: color-mix(in srgb, var(--card) 80%, var(--brand) 20%);
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #f3e4d2;
   font-size: 13px;
   cursor: pointer;
 }
 
 .person-actions .primary {
-  background: #6b5b4b;
+  background: var(--brand);
+  border-color: var(--brand);
+  color:#fff;
   color: #fff;
   border-color: #6b5b4b;
 }
@@ -475,7 +452,7 @@ body.dark .add-pill {
   padding: 28px 32px;
   overflow-y: auto;
   color: var(--text);
-  box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
 }
 
 /* close button */
@@ -568,7 +545,7 @@ body.dark .add-pill {
 #profile-edit-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(2px);
   z-index: 10000;
 }
@@ -587,7 +564,7 @@ body.dark .add-pill {
   z-index: 10001;
   overflow-y: auto;
 
-  box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
 }
 
 #profile-edit h2 {
@@ -692,4 +669,34 @@ body.dark .add-pill {
 .photo-drop span {
   color: var(--text-soft);
   font-size: 13px;
+}
+
+#profile-view,
+#profile-edit{
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.profile-header p,
+.profile-section p,
+#profile-edit label{
+  color: var(--text-soft, var(--txt));
+}
+
+.profile-section h3{
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+#profile-edit input,
+#profile-edit textarea,
+#profile-edit select{
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.photo-drop{
+  background: var(--bg-soft, var(--bg));
 }

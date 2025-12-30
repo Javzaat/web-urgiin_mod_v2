@@ -81,3 +81,16 @@ width: 100%;
 #what {
   scroll-margin-top: 90px;
 }
+/* ================= DARK WHAT SECTION ================= */
+body.dark .what{
+  background: var(--panel) !important;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+body.dark .what-copy{
+  color: var(--text);
+}
+body.dark .what-copy p{
+  color: var(--txt);
+}
