@@ -395,31 +395,97 @@ function findMember(id) {
 // ---- ancestors hidden set (collapseUp) ----
 function buildHiddenAncestorSet() {
   const hidden = new Set();
-  const visited = new Set();
+  const protectedSet = new Set();
+  const byId = new Map(members.map(m => [m.id, m]));
 
-  function dfs(id) {
-    if (visited.has(id)) return;
-    visited.add(id);
+  // --- protect clicked node + descendants + spouses ---
+  function protectDescendants(startId) {
+    const q = [startId];
+    while (q.length) {
+      const id = q.shift();
+      if (protectedSet.has(id)) continue;
+      protectedSet.add(id);
 
-    const m = findMember(id);
-    if (!m || !m.parents) return;
+      const m = byId.get(id);
+      if (!m) continue;
 
-    m.parents.forEach((pid) => {
-      if (!hidden.has(pid)) {
-        hidden.add(pid);
-        dfs(pid);
-      }
-    });
+      if (m.spouseId) protectedSet.add(m.spouseId);
+      (m.children || []).forEach(cid => q.push(cid));
+    }
   }
 
-  members.forEach((m) => {
-    if (m.collapseUp) {
-      dfs(m.id);
+  // --- hide subtree helper ---
+  function hideSubtree(startId) {
+    const q = [startId];
+    while (q.length) {
+      const id = q.shift();
+      if (!id || hidden.has(id) || protectedSet.has(id)) continue;
+
+      hidden.add(id);
+      const m = byId.get(id);
+      if (!m) continue;
+
+      if (m.spouseId && !protectedSet.has(m.spouseId)) {
+        hidden.add(m.spouseId);
+      }
+
+      (m.children || []).forEach(cid => q.push(cid));
     }
+  }
+
+  // --- main ---
+  members.forEach(m => {
+    if (!m.collapseUp) return;
+
+    // 1️⃣ protect main branch
+    protectDescendants(m.id);
+    protectedSet.add(m.id);
+    if (m.spouseId) protectedSet.add(m.spouseId);
+
+    // 2️⃣ for each parent
+    (m.parents || []).forEach(pid => {
+      const parent = byId.get(pid);
+      if (!parent) return;
+
+      // hide the parent itself
+      if (!protectedSet.has(parent.id)) {
+        hidden.add(parent.id);
+      }
+
+      // 🔥 hide ALL siblings (father's brothers) + their trees
+      (parent.children || []).forEach(cid => {
+        if (cid === m.id) return; // skip the clicked node
+        hideSubtree(cid);
+      });
+
+      // 3️⃣ go upward recursively
+      let up = parent;
+      while (up) {
+        (up.parents || []).forEach(ppid => {
+          const pp = byId.get(ppid);
+          if (!pp) return;
+
+          if (!protectedSet.has(pp.id)) hidden.add(pp.id);
+
+          (pp.children || []).forEach(cid => {
+            if (cid === up.id) return;
+            hideSubtree(cid);
+          });
+
+          up = pp;
+        });
+        break;
+      }
+    });
   });
+
+  // safety
+  protectedSet.forEach(id => hidden.delete(id));
 
   return hidden;
 }
+
+
 
 // ================== LAYOUT ==================
 function layoutTree() {
@@ -429,7 +495,69 @@ function layoutTree() {
   const visibleMembers = members.filter((m) => !hiddenAnc.has(m.id));
   if (!visibleMembers.length) return;
 
-  /* ===== GROUP BY LEVEL ===== */
+  /* =========================================================
+     1) STABLE ROOT (order-independent)
+  ========================================================= */
+  const root =
+    visibleMembers.find((m) => m.level === 0 && m.name === "Би") ||
+    visibleMembers.find((m) => m.level === 0) ||
+    visibleMembers.reduce((best, m) =>
+      m.level < best.level ? m : best
+    );
+
+  /* =========================================================
+     2) LINEAGE SIDE (father = left, mother = right)
+  ========================================================= */
+  const sideOf = new Map(); // id -> -1 | 0 | +1
+  visibleMembers.forEach((m) => sideOf.set(m.id, 0));
+
+  const rootFather = getParentBySex(root, "male");
+  const rootMother = getParentBySex(root, "female");
+
+  function markAncestors(startId, side) {
+    const q = [startId];
+    const seen = new Set();
+    while (q.length) {
+      const id = q.shift();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      sideOf.set(id, side);
+      const m = findMember(id);
+      if (!m?.parents) continue;
+      m.parents.forEach((pid) => pid && q.push(pid));
+    }
+  }
+
+  if (rootFather) markAncestors(rootFather.id, -1);
+  if (rootMother) markAncestors(rootMother.id, +1);
+
+  /* =========================================================
+     3) STABLE SORT HELPERS (NO insertion order)
+  ========================================================= */
+  function personKey(p) {
+    const bd = (p.birthDate || "").trim();
+    const nm = (p.name || "").trim().toLowerCase();
+    const sx = (p.sex || "").trim();
+    return `${bd}__${nm}__${sx}__${String(p.id).padStart(10, "0")}`;
+  }
+
+  function sharedParent(a, b) {
+    if (!a?.parents?.length || !b?.parents?.length) return false;
+    return a.parents.some((pid) => b.parents.includes(pid));
+  }
+
+  function coupleHasChild(a, b, nextRow) {
+    return nextRow.some(
+      (c) =>
+        Array.isArray(c.parents) &&
+        c.parents.includes(a.id) &&
+        c.parents.includes(b.id)
+    );
+  }
+
+  /* =========================================================
+     4) GROUP BY LEVEL
+  ========================================================= */
   const levelMap = new Map();
   visibleMembers.forEach((m) => {
     if (!levelMap.has(m.level)) levelMap.set(m.level, []);
@@ -442,132 +570,179 @@ function layoutTree() {
   const rowGap = CARD_H + V_GAP;
   const newPosMap = new Map();
 
-  levels.forEach((levelValue, rowIndex) => {
-    const row = levelMap.get(levelValue);
+  levels.forEach((level, rowIndex) => {
+    const row = (levelMap.get(level) || []).slice();
+    const nextRow = levelMap.get(level + 1) || [];
+    row.sort((a, b) => personKey(a).localeCompare(personKey(b)));
+
     const y = paddingTop + rowIndex * rowGap;
 
     const used = new Set();
     const units = [];
 
-    /* ================= BUILD UNITS (GENEALOGY LOGIC – UNCHANGED) ================= */
+    /* =====================================================
+       5) BUILD COUPLES (STRUCTURAL, ORDER-INDEPENDENT)
+    ===================================================== */
+    const couples = [];
     row.forEach((m) => {
-      if (used.has(m.id)) return;
+      if (!m.spouseId) return;
+      const s = findMember(m.spouseId);
+      if (!s || s.level !== level) return;
+      if (!row.some((x) => x.id === s.id)) return;
 
-      if (m.spouseId) {
-        const s = findMember(m.spouseId);
-        if (s && s.level === levelValue && !used.has(s.id)) {
-          let husband = m.sex === "male" ? m : s;
-          let wife = m.sex === "female" ? m : s;
+      const a = m.id < s.id ? m : s;
+      const b = m.id < s.id ? s : m;
+      const key = `${a.id}-${b.id}`;
+      if (!couples.some((c) => c.key === key)) {
+        couples.push({ key, a, b });
+      }
+    });
 
-          if (!husband || !wife) {
-            husband = m;
-            wife = s;
+    couples.sort((c1, c2) => {
+      const s1 = (sideOf.get(c1.a.id) || 0) + (sideOf.get(c1.b.id) || 0);
+      const s2 = (sideOf.get(c2.a.id) || 0) + (sideOf.get(c2.b.id) || 0);
+      if (s1 !== s2) return s1 - s2;
+      return (
+        personKey(c1.a) + personKey(c1.b)
+      ).localeCompare(personKey(c2.a) + personKey(c2.b));
+    });
+
+    couples.forEach(({ a, b }) => {
+      if (used.has(a.id) || used.has(b.id)) return;
+
+      let husband = a.sex === "male" ? a : b.sex === "male" ? b : a;
+      let wife = a.sex === "female" ? a : b.sex === "female" ? b : b;
+
+      const confirmed = coupleHasChild(husband, wife, nextRow);
+
+      used.add(husband.id);
+      used.add(wife.id);
+
+      const husbandSibs = [];
+      const wifeSibs = [];
+
+      if (confirmed) {
+        row.forEach((x) => {
+          if (used.has(x.id)) return;
+          if (x.spouseId) return;
+          if (sharedParent(x, husband)) {
+            husbandSibs.push(x);
+            used.add(x.id);
           }
+        });
 
-          used.add(husband.id);
-          used.add(wife.id);
-
-          const husbandSibs = [];
-          const wifeSibs = [];
-
-          row.forEach((x) => {
-            if (used.has(x.id)) return;
-            if (!x.parents || !husband.parents) return;
-
-            const shared = x.parents.some((p) => husband.parents.includes(p));
-
-            if (shared && x.id !== husband.id && x.id !== wife.id) {
-              husbandSibs.push(x);
-              used.add(x.id);
-            }
-          });
-
-          row.forEach((x) => {
-            if (used.has(x.id)) return;
-            if (!x.parents || !wife.parents) return;
-
-            const shared = x.parents.some((p) => wife.parents.includes(p));
-
-            if (shared && x.id !== husband.id && x.id !== wife.id) {
-              wifeSibs.push(x);
-              used.add(x.id);
-            }
-          });
-
-          units.push({
-            type: "family",
-            husband,
-            wife,
-            husbandSibs,
-            wifeSibs,
-          });
-          return;
-        }
+        row.forEach((x) => {
+          if (used.has(x.id)) return;
+          if (x.spouseId) return;
+          if (sharedParent(x, wife)) {
+            wifeSibs.push(x);
+            used.add(x.id);
+          }
+        });
       }
 
-      used.add(m.id);
-      units.push({ type: "single", member: m });
+      husbandSibs.sort((a, b) =>
+        personKey(a).localeCompare(personKey(b))
+      );
+      wifeSibs.sort((a, b) =>
+        personKey(a).localeCompare(personKey(b))
+      );
+
+      units.push({
+        type: "family",
+        husband,
+        wife,
+        husbandSibs,
+        wifeSibs,
+      });
     });
 
-    /* ================= CALCULATE TOTAL ROW WIDTH (⭐ NEW BALANCE PART ⭐) ================= */
+    /* =====================================================
+       6) REMAINING SINGLES
+    ===================================================== */
+    row
+      .filter((m) => !used.has(m.id))
+      .sort((a, b) => {
+        const sa = sideOf.get(a.id) || 0;
+        const sb = sideOf.get(b.id) || 0;
+        if (sa !== sb) return sa - sb;
+        return personKey(a).localeCompare(personKey(b));
+      })
+      .forEach((m) => units.push({ type: "single", member: m }));
+
+    /* =====================================================
+       7) ORDER UNITS: LEFT → CENTER → RIGHT
+    ===================================================== */
+    function unitSide(u) {
+      if (u.type === "single") return sideOf.get(u.member.id) || 0;
+      return (
+        (sideOf.get(u.husband.id) || 0) +
+        (sideOf.get(u.wife.id) || 0)
+      );
+    }
+
+    const left = [],
+      center = [],
+      right = [];
+    units.forEach((u) => {
+      const s = unitSide(u);
+      if (s < 0) left.push(u);
+      else if (s > 0) right.push(u);
+      else center.push(u);
+    });
+
+    const orderedUnits = [...left, ...center, ...right];
+
+    /* =====================================================
+       8) PLACE UNITS (CENTERED ROW)
+    ===================================================== */
     const GAP = CARD_W + H_GAP;
+    const widths = orderedUnits.map((u) =>
+      u.type === "single"
+        ? GAP
+        : (u.husbandSibs.length + u.wifeSibs.length + 2) * GAP
+    );
 
-    const unitWidths = units.map((unit) => {
-      if (unit.type === "single") return GAP;
-      const left = unit.husbandSibs.length;
-      const right = unit.wifeSibs.length;
-      return (left + right + 2) * GAP;
-    });
+    const totalW =
+      widths.reduce((a, b) => a + b, 0) +
+      (orderedUnits.length - 1) * H_GAP;
 
-    const totalRowWidth =
-      unitWidths.reduce((s, w) => s + w, 0) + (units.length - 1) * H_GAP;
+    let cursorX = -totalW / 2;
 
-    /* ================= CENTER THIS ROW ================= */
-    let cursorX = -totalRowWidth / 2;
-
-    units.forEach((unit, idx) => {
-      if (unit.type === "single") {
-        newPosMap.set(unit.member.id, {
-          x: cursorX + GAP / 2,
-          y,
-        });
+    orderedUnits.forEach((u) => {
+      if (u.type === "single") {
+        newPosMap.set(u.member.id, { x: cursorX + GAP / 2, y });
         cursorX += GAP + H_GAP;
         return;
       }
 
-      const { husband, wife, husbandSibs, wifeSibs } = unit;
-
-      const leftCount = husbandSibs.length;
-      const rightCount = wifeSibs.length;
-      const unitWidth = (leftCount + rightCount + 2) * GAP;
-
       let x = cursorX;
 
-      // 👨 siblings (LEFT)
-      husbandSibs.forEach((s) => {
+      u.husbandSibs.forEach((s) => {
         newPosMap.set(s.id, { x: x + GAP / 2, y });
         x += GAP;
       });
 
-      // 👨 husband
-      newPosMap.set(husband.id, { x: x + GAP / 2, y });
+      newPosMap.set(u.husband.id, { x: x + GAP / 2, y });
       x += GAP;
 
-      // 👩 wife
-      newPosMap.set(wife.id, { x: x + GAP / 2, y });
+      newPosMap.set(u.wife.id, { x: x + GAP / 2, y });
       x += GAP;
 
-      // 👩 siblings (RIGHT)
-      wifeSibs.forEach((s) => {
+      u.wifeSibs.forEach((s) => {
         newPosMap.set(s.id, { x: x + GAP / 2, y });
         x += GAP;
       });
 
-      cursorX += unitWidth + H_GAP;
+      cursorX +=
+        (u.husbandSibs.length + u.wifeSibs.length + 2) * GAP +
+        H_GAP;
     });
   });
 
-  /* ================= APPLY ================= */
+  /* =====================================================
+     9) APPLY
+  ===================================================== */
   members.forEach((m) => {
     const p = newPosMap.get(m.id);
     if (p) {
@@ -1792,3 +1967,4 @@ async function loadTreeFromDB() {
     scheduleRender();
   }
 }
+
