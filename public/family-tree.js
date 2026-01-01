@@ -850,6 +850,9 @@ function createFamilyCard(member) {
   /* ================= ADD MENU ================= */
 
   const menu = document.createElement("div");
+  menu.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
   menu.className = "add-menu hidden";
 
   const makeBtn = (text, cls = "add-pill") => {
@@ -963,7 +966,7 @@ function createFamilyCard(member) {
 
   btnAdd.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleMenu(menu);
+    toggleMenu(menu, card);
   });
 
   btnFather.onclick = (e) => {
@@ -1036,9 +1039,34 @@ function createFamilyCard(member) {
 }
 
 // ================== MENU HELPERS ==================
-function toggleMenu(menu) {
+function toggleMenu(menu, card) {
   closeAllMenus();
-  menu.classList.toggle("hidden");
+
+  // body руу зөөнө
+  if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
+
+  // эхлээд харагддаг болгоно
+  menu.classList.remove("hidden");
+
+  // 🔥 ДАРАА нь хэмжинэ
+  const cardRect = card.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+
+  let top = cardRect.top - menuRect.height - 8;
+  let left = cardRect.right - menuRect.width;
+
+  // дээр багтахгүй бол доор
+  if (top < 8) {
+    top = cardRect.bottom + 8;
+  }
+
+  // дэлгэцээс гарахгүй
+  left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+
+  menu.style.top = `${top}px`;
+  menu.style.left = `${left}px`;
 }
 
 function closeAllMenus() {
@@ -1967,4 +1995,139 @@ async function loadTreeFromDB() {
     scheduleRender();
   }
 }
+// ================= SIMPLE SEARCH (LIST ONLY) =================
 
+// ================= SEARCH STATE =================
+const searchState = {
+  name: "",
+  family: "",
+  clan: "",
+  education: "",
+};
+
+// ================= SEARCH FILTER =================
+function searchMembers(list) {
+  return list.filter(m => {
+    if (
+      searchState.name &&
+      !m.name?.toLowerCase().includes(searchState.name)
+    ) return false;
+
+    // Овог
+    // ⭐ Овог = ЭЦГИЙН НЭР
+    if (
+      searchState.family &&
+      !m.fatherName?.toLowerCase().includes(searchState.family)
+    ) return false;
+
+    // ⭐ Ургийн овог = ОВОГ
+    if (
+      searchState.clan &&
+      !m.familyName?.toLowerCase().includes(searchState.clan)
+    ) return false;
+
+    // Боловсрол
+    if (
+      searchState.education &&
+      m.education !== searchState.education
+    ) return false;
+
+    return true;
+  });
+}
+function renderSearchList() {
+  const ul = document.getElementById("search-result-list");
+  if (!ul) return;
+
+  ul.innerHTML = "";
+
+  const hasFilter =
+    searchState.name ||
+    searchState.family ||
+    searchState.clan ||
+    searchState.education;
+
+  if (!hasFilter) {
+    applyTreeHighlight(); // reset
+    return;
+  }
+
+  const results = searchMembers(members);
+
+  results.forEach(m => {
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <div class="search-result-name">
+        ${m.familyName || ""} ${m.name || ""}
+      </div>
+      <div class="search-result-meta">
+        ${m.age ? m.age + " настай · " : ""}
+        ${m.sex === "male" ? "Эр" : m.sex === "female" ? "Эм" : ""}
+      </div>
+    `;
+
+    li.addEventListener("click", () => {
+      openProfileView(m); // дэлгэрэнгүй
+    });
+
+    ul.appendChild(li);
+  });
+
+  applyTreeHighlight(); // ⭐ ЭНД
+}
+function applyTreeHighlight() {
+  // 1) Одоогийн filter-т таарах хүмүүс
+  const matched = searchMembers(members);
+  const matchedIds = new Set(matched.map(m => m.id));
+
+  // 2) filter огт байхгүй бол → бүх highlight-ыг арилгана
+  const hasFilter =
+    searchState.name ||
+    searchState.family ||
+    searchState.clan ||
+    searchState.education;
+
+  document.querySelectorAll(".family-card").forEach(card => {
+    const id = Number(card.dataset.id);
+
+    card.classList.remove("search-hit", "search-dim");
+
+    if (!hasFilter) return;
+
+    if (matchedIds.has(id)) {
+      card.classList.add("search-hit");
+    } else {
+      card.classList.add("search-dim");
+    }
+  });
+}
+
+document.getElementById("search-name")?.addEventListener("input", e => {
+  searchState.name = e.target.value.trim().toLowerCase();
+  renderSearchList();
+});
+
+document.getElementById("search-family")?.addEventListener("input", e => {
+  searchState.family = e.target.value.trim().toLowerCase();
+  renderSearchList();
+});
+
+document.getElementById("search-clan")?.addEventListener("input", e => {
+  searchState.clan = e.target.value.trim().toLowerCase();
+  renderSearchList();
+});
+
+document.getElementById("search-education")?.addEventListener("change", e => {
+  searchState.education = e.target.value;
+  renderSearchList();
+});
+document.addEventListener("click", () => {
+  closeAllMenus();
+});
+
+function closeAllMenus() {
+  document.querySelectorAll(".add-menu").forEach(menu => {
+    menu.classList.add("hidden");
+  });
+}

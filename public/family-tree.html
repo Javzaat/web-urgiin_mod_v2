@@ -43,6 +43,25 @@
 
     <!-- ============== FAMILY TREE ============== -->
     <main class="tree-page">
+      <!-- ===== SEARCH PANEL ===== -->
+      <div class="search-panel">
+
+        <input id="search-name" class="search-input" placeholder="Нэр" />
+        <input id="search-family" class="search-input" placeholder="Эцгийн нэр" />
+        <input id="search-clan" class="search-input" placeholder="Овог" />
+
+        <select id="search-education" class="search-select">
+          <option value="">Боловсрол (бүгд)</option>
+          <option value="Бага">Бага</option>
+          <option value="Суурь">Суурь</option>
+          <option value="Бүрэн дунд">Бүрэн дунд</option>
+          <option value="Бакалавр">Бакалавр</option>
+          <option value="Магистр">Магистр</option>
+          <option value="Доктор">Доктор</option>
+        </select>
+
+        <ul id="search-result-list" class="search-result-list"></ul>
+      </div>
       <section class="tree-layout">
         <div id="tree-root" class="tree-root">
           <div id="tree-scale" class="tree-scale">
