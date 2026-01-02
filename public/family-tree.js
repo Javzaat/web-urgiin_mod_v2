@@ -7,7 +7,8 @@ const V_GAP = 60;
 let members = [];
 let nextId = 1;
 let pendingDeleteMember = null;
-
+let pendingMediaDelete = null;
+// { member, type: "image" | "video", index }
 /* ✅ глобалд харагдуулна */
 window.members = members;
 window.getMembers = () => members;
@@ -201,6 +202,30 @@ function createDefaultRoot() {
 }
 
 // ================== HELPERS ==================
+function showWarning(message) {
+  const backdrop = document.getElementById("warn-backdrop");
+  const modal = document.getElementById("warn-modal");
+  const text = document.getElementById("warn-text");
+  const ok = document.getElementById("warn-ok");
+
+  if (!backdrop || !modal || !text || !ok) return;
+
+  text.textContent = message;
+
+  backdrop.hidden = false;
+  modal.hidden = false;
+
+  // яг logout / delete шиг force show
+  backdrop.style.display = "block";
+  modal.style.display = "flex";
+
+  ok.onclick = () => {
+    backdrop.hidden = true;
+    modal.hidden = true;
+    backdrop.style.display = "";
+    modal.style.display = "";
+  };
+}
 function hasActiveSearch() {
   return (
     searchState.name ||
@@ -1033,21 +1058,24 @@ function createFamilyCard(member) {
   return card;
 }
 
-function openDeleteConfirm(member) {
-  pendingDeleteMember = member;
 
-  const backdrop = document.getElementById("delete-backdrop");
-  const modal = document.getElementById("delete-modal");
+function openMediaDeleteConfirm({ member, type, index }) {
+  pendingMediaDelete = { member, type, index };
 
-  backdrop.hidden = false;
-  modal.hidden = false;
+  document.getElementById("media-delete-backdrop").hidden = false;
+  document.getElementById("media-delete-modal").hidden = false;
 
-  backdrop.style.display = "block";
-  modal.style.display = "flex";
+  const text = type === "image"
+    ? "Зургийг устгах уу?"
+    : "Видеог устгах уу?";
 
-  // 🔥 STOP EVENT BUBBLE
-  modal.onclick = e => e.stopPropagation();
-  backdrop.onclick = e => e.stopPropagation();
+  document.getElementById("media-delete-text").textContent = text;
+}
+
+function closeMediaDeleteConfirm() {
+  pendingMediaDelete = null;
+  document.getElementById("media-delete-backdrop").hidden = true;
+  document.getElementById("media-delete-modal").hidden = true;
 }
 // ================== MENU HELPERS ==================
 function toggleMenu(menu, card) {
@@ -1187,25 +1215,39 @@ function submitPersonForm() {
     photoUrl: photoInput ? photoInput.value.trim() : "",
   };
 
+  let success = true; // ⭐ ADD
+
   switch (modalMode) {
     case "edit":
       if (modalTarget) editPersonWithData(modalTarget, data);
       break;
+
     case "add-father":
-      if (modalTarget) addFatherWithData(modalTarget, data);
+      if (modalTarget) {
+        success = addFatherWithData(modalTarget, data) !== false;
+      }
       break;
+
     case "add-mother":
-      if (modalTarget) addMotherWithData(modalTarget, data);
+      if (modalTarget) {
+        success = addMotherWithData(modalTarget, data) !== false;
+      }
       break;
+
     case "add-spouse":
-      if (modalTarget) addSpouseWithData(modalTarget, data);
+      if (modalTarget) {
+        success = addSpouseWithData(modalTarget, data) !== false;
+      }
       break;
+
     case "add-child":
       if (modalTarget) addChildWithData(modalTarget, data);
       break;
   }
 
-  saveTreeToDB(); // бүх өөрчлөлтийг файлд хадгална
+  if (!success) return; // ⭐ WARNING гарсан бол modal-ийг битгий хаа
+
+  saveTreeToDB();
   closePersonModal();
   scheduleRender();
 }
@@ -1221,8 +1263,8 @@ function normalizeSex(str) {
 function addFatherWithData(child, data) {
   const existingFather = getParentBySex(child, "male");
   if (existingFather) {
-    alert("Эцэг аль хэдийн бүртгэлтэй байна.");
-    return;
+    showWarning("Эцэг аль хэдийн бүртгэлтэй байна.");
+    return false;
   }
 
   const level = child.level - 1;
@@ -1253,7 +1295,7 @@ function addFatherWithData(child, data) {
 function addMotherWithData(child, data) {
   const existingMother = getParentBySex(child, "female");
   if (existingMother) {
-    alert("Эх аль хэдийн бүртгэлтэй байна.");
+    showWarning("Эх аль хэдийн бүртгэлтэй байна.");
     return;
   }
 
@@ -1284,7 +1326,7 @@ function addMotherWithData(child, data) {
 
 function addSpouseWithData(person, data) {
   if (person.spouseId) {
-    alert("Хань аль хэдийн бүртгэлтэй байна.");
+    showWarning("Хань аль хэдийн бүртгэлтэй байна.");
     return;
   }
 
@@ -1697,10 +1739,11 @@ function openProfileView(member) {
         del.textContent = "✕";
         del.onclick = (e) => {
           e.stopPropagation();
-          if (!confirm("Зургийг устгах уу?")) return;
-          member.images.splice(i, 1);
-          saveTreeToDB();
-          openProfileView(member);
+          openMediaDeleteConfirm({
+            member,
+            type: "image",
+            index: i,
+          });
         };
 
         wrap.append(img, del);
@@ -1724,11 +1767,13 @@ function openProfileView(member) {
         const del = document.createElement("button");
         del.className = "media-delete";
         del.textContent = "✕";
-        del.onclick = () => {
-          if (!confirm("Видеог устгах уу?")) return;
-          member.videos.splice(i, 1);
-          saveTreeToDB();
-          openProfileView(member);
+        del.onclick = (e) => {
+          e.stopPropagation();
+          openMediaDeleteConfirm({
+            member,
+            type: "video",
+            index: i,
+          });
         };
 
         wrap.append(video, del);
@@ -1773,8 +1818,8 @@ let currentProfileMember = null;
 let editImages = [];
 let editVideos = [];
 function closeProfileEdit() {
-  document.getElementById("profile-edit-backdrop").hidden = true;
-  document.getElementById("profile-edit").hidden = true;
+  const edit = document.getElementById("profile-edit");
+  if (edit) edit.hidden = true;
 }
 
 document
@@ -2418,3 +2463,25 @@ document.getElementById("delete-confirm")?.addEventListener("click", () => {
   pendingDeleteMember = null;
   closeDeleteConfirm();
 });
+document.getElementById("media-delete-cancel")
+  ?.addEventListener("click", closeMediaDeleteConfirm);
+
+document.getElementById("media-delete-backdrop")
+  ?.addEventListener("click", closeMediaDeleteConfirm);
+
+document.getElementById("media-delete-confirm")
+  ?.addEventListener("click", () => {
+    if (!pendingMediaDelete) return;
+
+    const { member, type, index } = pendingMediaDelete;
+
+    if (type === "image") {
+      member.images.splice(index, 1);
+    } else if (type === "video") {
+      member.videos.splice(index, 1);
+    }
+
+    saveTreeToDB();
+    openProfileView(member);
+    closeMediaDeleteConfirm();
+  });

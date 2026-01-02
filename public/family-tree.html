@@ -156,7 +156,8 @@
         <div id="profile-media"></div>
       </div>
       <!-- ================== PROFILE EDIT MODAL ================== -->
-
+      <!-- PROFILE EDIT BACKDROP -->
+      <div id="profile-edit-backdrop" class="profile-backdrop" hidden></div>        
       <div id="profile-edit" hidden>
         <button id="profile-edit-close">×</button>
 
@@ -319,13 +320,38 @@
       </div>
     </div>
     <!-- DELETE CONFIRM -->
-    <div id="delete-backdrop" class="logout-backdrop" hidden></div>
+    <div id="delete-backdrop" class="delete-backdrop" hidden></div>
+
     <div id="delete-modal" class="delete-modal" hidden>
       <div class="logout-box">
         <p id="delete-text">Энэ хүнийг устгах уу?</p>
+
         <div class="logout-actions">
           <button id="delete-cancel" class="logout-btn cancel">Буцах</button>
           <button id="delete-confirm" class="logout-btn confirm">Устгах</button>
+        </div>
+      </div>
+    </div>
+    <!-- MEDIA DELETE CONFIRM -->
+    <div id="media-delete-backdrop" class="delete-backdrop" hidden></div>
+
+    <div id="media-delete-modal" class="delete-modal" hidden>
+      <div class="logout-box">
+        <p id="media-delete-text">Энэ файлыг устгах уу?</p>
+
+        <div class="logout-actions">
+          <button id="media-delete-cancel" class="logout-btn cancel">Буцах</button>
+          <button id="media-delete-confirm" class="logout-btn confirm">Устгах</button>
+        </div>
+      </div>
+    </div>
+    <!-- WARNING MODAL -->
+    <div id="warn-backdrop" class="logout-backdrop" hidden></div>
+    <div id="warn-modal" class="logout-modal" hidden>
+      <div class="logout-box">
+        <p id="warn-text">Анхааруулга</p>
+        <div class="logout-actions">
+          <button id="warn-ok" class="logout-btn confirm">OK</button>
         </div>
       </div>
     </div>
