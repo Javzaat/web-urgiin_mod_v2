@@ -156,7 +156,6 @@
         <div id="profile-media"></div>
       </div>
       <!-- ================== PROFILE EDIT MODAL ================== -->
-      <div id="profile-edit-backdrop" hidden></div>
 
       <div id="profile-edit" hidden>
         <button id="profile-edit-close">×</button>
@@ -334,29 +333,19 @@
         <button id="success-ok" class="success-btn">OK</button>
       </div>
     </div>
-
+    <div id="image-viewer" class="image-viewer hidden">
+      <button id="image-close">✕</button>
+      <img id="image-viewer-img" />
+    </div>
     <!-- ============== SCRIPTS ============== -->
     <script src="auth.js" type="module"></script>
     <script src="header.js"></script>
     <script src="mongolia-data.js"></script>
     <script src="family-tree.js"></script>
-    <div id="img-lightbox" style="
-        position:fixed;
-        inset:0;
-        background:rgba(0,0,0,.85);
-        display:none;
-        align-items:center;
-        justify-content:center;
-        z-index:999999;
-        ">
-        <img id="img-lightbox-img" style="
-          max-width:90%;
-          max-height:90%;
-          border-radius:12px;
-        ">
-    </div>
+
   
     
+
   </body>
 </html>
 

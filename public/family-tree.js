@@ -1641,36 +1641,61 @@ function openProfileView(member) {
 
     // Images
     if (Array.isArray(member.images)) {
-      member.images.forEach((url) => {
+      member.images.forEach((url, i) => {
+        const wrap = document.createElement("div");
+        wrap.className = "media-item";
+
         const img = document.createElement("img");
         img.src = url;
+        img.style.width = "140px";
+        img.style.borderRadius = "12px";
         img.style.cursor = "zoom-in";
         img.onclick = (e) => {
-          e.stopPropagation();      // 🔥 ЭНЭ ЧУХАЛ
-          openImageLightbox(url);
+          e.stopPropagation();        // 🔥 ЭНЭ БАЙХ ЁСТОЙ
+          openImageFullscreen(url);
         };
-        img.style.width = "140px";
-        img.style.margin = "6px";
-        img.style.borderRadius = "12px";
-        img.style.objectFit = "cover";
-        mediaBox.appendChild(img);
+
+        const del = document.createElement("button");
+        del.className = "media-delete";
+        del.textContent = "✕";
+        del.onclick = (e) => {
+          e.stopPropagation();
+          if (!confirm("Зургийг устгах уу?")) return;
+          member.images.splice(i, 1);
+          saveTreeToDB();
+          openProfileView(member);
+        };
+
+        wrap.append(img, del);
+        mediaBox.appendChild(wrap);
       });
     }
 
     // Videos
     // Videos
     if (Array.isArray(member.videos)) {
-      member.videos.forEach((url) => {
+      member.videos.forEach((url, i) => {
+        const wrap = document.createElement("div");
+        wrap.className = "media-item";
+
         const video = document.createElement("video");
         video.src = url;
-        video.controls = true;      // browser өөрөө удирдана
-        video.preload = "metadata";
+        video.controls = true;
         video.style.width = "220px";
-        video.style.margin = "6px";
         video.style.borderRadius = "12px";
-        video.style.background = "#000";
 
-        mediaBox.appendChild(video);
+        const del = document.createElement("button");
+        del.className = "media-delete";
+        del.textContent = "✕";
+        del.onclick = () => {
+          if (!confirm("Видеог устгах уу?")) return;
+          member.videos.splice(i, 1);
+          saveTreeToDB();
+          openProfileView(member);
+        };
+
+        wrap.append(video, del);
+        mediaBox.appendChild(wrap);
       });
     }
 
@@ -2277,22 +2302,7 @@ document.addEventListener("click", () => {
   closeAllMenus();
 });
 
-const lightbox = document.getElementById("img-lightbox");
-const lightboxImg = document.getElementById("img-lightbox-img");
-lightboxImg?.addEventListener("click", (e) => {
-  e.stopPropagation(); // image дээр дарахад хаагдахгүй
-});
 
-lightbox?.addEventListener("click", () => {
-  lightbox.style.display = "none";
-  lightboxImg.src = "";
-});
-
-function openImageLightbox(src) {
-  if (!lightbox || !lightboxImg) return;
-  lightboxImg.src = src;
-  lightbox.style.display = "flex";
-}
 async function uploadFileToR2(file) {
   const fd = new FormData();
   fd.append("file", file);
@@ -2308,4 +2318,48 @@ async function uploadFileToR2(file) {
 
   const data = await res.json();
   return data.url; // ⭐ PUBLIC URL
+}
+// ===== Fullscreen Image Viewer (FINAL & CLEAN) =====
+let imageViewer = null;
+let imageViewerImg = null;
+
+window.addEventListener("DOMContentLoaded", () => {
+  imageViewer = document.getElementById("image-viewer");
+  imageViewerImg = document.getElementById("image-viewer-img");
+
+  document.getElementById("image-close")?.addEventListener("click", closeImageFullscreen);
+
+  imageViewer?.addEventListener("click", (e) => {
+    if (e.target === imageViewer) {
+      closeImageFullscreen();
+    }
+  });
+});
+
+function openImageFullscreen(src) {
+  if (!imageViewer || !imageViewerImg) return;
+
+  // profile modal-ыг түр нуух
+  const profileView = document.getElementById("profile-view");
+  const profileBackdrop = document.getElementById("profile-backdrop");
+
+  if (profileView) profileView.style.display = "none";
+  if (profileBackdrop) profileBackdrop.style.display = "none";
+
+  imageViewerImg.src = src;
+  imageViewer.classList.remove("hidden");
+}
+
+function closeImageFullscreen() {
+  if (!imageViewer || !imageViewerImg) return;
+
+  imageViewer.classList.add("hidden");
+  imageViewerImg.src = "";
+
+  // profile modal-ыг буцааж харуулах
+  const profileView = document.getElementById("profile-view");
+  const profileBackdrop = document.getElementById("profile-backdrop");
+
+  if (profileView) profileView.style.display = "";
+  if (profileBackdrop) profileBackdrop.style.display = "";
 }
