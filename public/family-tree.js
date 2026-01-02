@@ -153,6 +153,15 @@ window.saveTreeNow = saveTreeNow;
 
 let treeRoot, nodesLayer, svg;
 let posMap = new Map(); // id -> {x,y}
+// ================== ZOOM / PAN STATE ==================
+const zoomState = {
+  userScale: 1,   // гараар zoom (1 = default)
+  panX: 0,        // screen-space pan
+  panY: 0,
+  min: 0.45,
+  max: 2.8,
+  step: 0.12
+};
 
 // Person modal state
 let modalMode = null; // "add-father" | "add-mother" | "add-spouse" | "add-child" | "edit"
@@ -167,6 +176,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   setupPersonModal();
   setupThemeButton();
+  setupTreeZoomAndPan();
+
 
   // 🔥 Auth state-г гаднаас hook хийнэ
   waitForAuthAndLoadTree();
@@ -812,16 +823,22 @@ function renderTree() {
     const viewH = treeRoot.clientHeight;
 
     if (treeW <= 0 || treeH <= 0) return;
+    
+    const fitScale = Math.min(viewW / treeW, viewH / treeH, 1);
 
-    // 2) scale to fit viewport
-    const scale = Math.min(viewW / treeW, viewH / treeH, 1);
+    const finalScale = fitScale * zoomState.userScale;
 
-    // 3) center inside viewport (in screen space)
-    const offsetX = (viewW - treeW * scale) / 2;
-    const offsetY = (viewH - treeH * scale) / 2;
+    const offsetX = (viewW - treeW * finalScale) / 2;
+    const offsetY = (viewH - treeH * finalScale) / 2;
 
-    // 4) IMPORTANT: order is center -> scale -> shift-to-zero
-    scaleBox.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale}) translate(${-bounds.minX}px, ${-bounds.minY}px)`;
+    // ✅ user pan нь screen space дээр нэмэгдэнэ
+    scaleBox.style.transform =
+      `translate(${offsetX + zoomState.panX}px, ${
+        offsetY + zoomState.panY
+      }px) ` +
+      `scale(${finalScale}) ` +
+      `translate(${-bounds.minX}px, ${-bounds.minY}px)`;
+    
 
     // 5) SVG must live in the SAME tree space as nodes (before transform)
     svg.setAttribute("width", treeW);
@@ -2485,3 +2502,77 @@ document.getElementById("media-delete-confirm")
     openProfileView(member);
     closeMediaDeleteConfirm();
   });
+
+function clamp(v, a, b) {
+  return Math.max(a, Math.min(b, v));
+}
+
+function setupTreeZoomAndPan() {
+  const scaleBox = document.getElementById("tree-scale");
+  if (!treeRoot || !scaleBox) return;
+
+  const btnIn = document.getElementById("btn-zoom-in");
+  const btnOut = document.getElementById("btn-zoom-out");
+  const btnReset = document.getElementById("btn-zoom-reset");
+
+  const apply = () => {
+    // layoutTree хийхгүйгээр зөвхөн харагдац шинэчилнэ
+    renderTree();
+  };
+
+  btnIn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    zoomState.userScale = clamp(zoomState.userScale + zoomState.step, zoomState.min, zoomState.max);
+    apply();
+  });
+
+  btnOut?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    zoomState.userScale = clamp(zoomState.userScale - zoomState.step, zoomState.min, zoomState.max);
+    apply();
+  });
+
+  btnReset?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    zoomState.userScale = 1;
+    zoomState.panX = 0;
+    zoomState.panY = 0;
+    apply();
+  });
+
+  // ================== DRAG PAN ==================
+  let dragging = false;
+  let startX = 0, startY = 0;
+  let basePanX = 0, basePanY = 0;
+
+  treeRoot.addEventListener("pointerdown", (e) => {
+    // карт, товч, input дээр бол pan эхлүүлэхгүй
+    if (e.target.closest(".family-card") || e.target.closest(".tree-zoom") || e.target.closest("button") || e.target.closest("input") || e.target.closest("select") || e.target.closest("textarea")) {
+      return;
+    }
+    dragging = true;
+    treeRoot.setPointerCapture(e.pointerId);
+    startX = e.clientX;
+    startY = e.clientY;
+    basePanX = zoomState.panX;
+    basePanY = zoomState.panY;
+  });
+
+  treeRoot.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    zoomState.panX = basePanX + dx;
+    zoomState.panY = basePanY + dy;
+    renderTree();
+  });
+
+  treeRoot.addEventListener("pointerup", (e) => {
+    dragging = false;
+    try { treeRoot.releasePointerCapture(e.pointerId); } catch {}
+  });
+
+  treeRoot.addEventListener("pointercancel", () => {
+    dragging = false;
+  });
+}
