@@ -149,6 +149,52 @@ body.dark .tree-zoom {
 .zoom-reset {
   font-size: 18px;
 }
+@media (max-width: 1024px) {
+  .tree-zoom {
+    right: 10px;
+    bottom: 10px;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .tree-page {
+    padding-top: 0;   /* ✅ header доорх зайг авлаа */
+  }
+  .zoom-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+    border-radius: 10px;
+  }
+
+  .zoom-reset {
+    font-size: 16px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .tree-zoom {
+    right: 8px;
+    bottom: 8px;
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .zoom-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+    border-radius: 9px;
+  }
+
+  .zoom-reset {
+    font-size: 15px;
+  }
+}
+
+
+
 
 #tree-lines-svg {
   position: absolute;
