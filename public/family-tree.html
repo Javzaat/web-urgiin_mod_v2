@@ -232,6 +232,16 @@
             placeholder="Зургийн URL (https://...)"
           />
         </div>
+        <div class="profile-media-edit">
+          <h4>Нэмэлт зураг</h4>
+          <div id="edit-images" class="media-grid"></div>
+          <button type="button" id="add-image">+ Зураг нэмэх</button>
+
+
+          <h4>Видео</h4>
+          <div id="edit-videos" class="media-grid"></div>
+          <button type="button" id="add-video">+ Видео нэмэх</button>
+        </div>
 
         <label
           >Боловсрол
@@ -256,7 +266,7 @@
           <textarea id="edit-achievements"></textarea>
         </label>
 
-        <button id="profile-edit-save">Хадгалах</button>
+        <button id="profile-edit-save" type="button">Хадгалах</button>
       </div>
     </div>
 
@@ -330,6 +340,23 @@
     <script src="header.js"></script>
     <script src="mongolia-data.js"></script>
     <script src="family-tree.js"></script>
+    <div id="img-lightbox" style="
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.85);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:999999;
+        ">
+        <img id="img-lightbox-img" style="
+          max-width:90%;
+          max-height:90%;
+          border-radius:12px;
+        ">
+    </div>
+  
     
   </body>
 </html>
+

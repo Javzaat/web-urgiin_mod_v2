@@ -6,7 +6,7 @@ const { requireAuth } = require("./requireAuth");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-
+const uploadRoute = require("./routes/upload");
 
 const app = express();
 
@@ -20,6 +20,7 @@ const pool = require("./db"); // ✅ ганц DB connection
 /* ================== MIDDLEWARE ================== */
 app.use(cors());
 app.use(express.json());
+app.use("/api/upload", uploadRoute);
 
 /* ================== STATIC FILES ================== */
 app.use(express.static(path.join(__dirname, "..", "public")));

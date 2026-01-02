@@ -14,7 +14,6 @@ window.getMembers = () => members;
 let renderQueued = false;
 let saveTimer = null;
 let saving = false;
-
 // ================== DATA MODEL ==================
 class FamilyMember {
   constructor({
@@ -85,9 +84,6 @@ window.addEventListener("beforeunload", () => {
   // debounce амжихгүй байж магадгүй тул sync-ish trigger
   if (typeof window.saveTreeNow === "function") window.saveTreeNow();
 });
-
-window.members = members;
-window.getMembers = () => members;
 
 async function saveTreeToDB() {
   const user = window.auth?.currentUser;
@@ -204,6 +200,14 @@ function createDefaultRoot() {
 }
 
 // ================== HELPERS ==================
+function hasActiveSearch() {
+  return (
+    searchState.name ||
+    searchState.family ||
+    searchState.clan ||
+    searchState.education
+  );
+}
 function defaultPhotoBySex(sex) {
   if (sex === "male") return "img/profileman.avif";
   if (sex === "female") return "img/profilewoman.jpg";
@@ -394,16 +398,19 @@ function findMember(id) {
 
 // ---- ancestors hidden set (collapseUp) ----
 function buildHiddenAncestorSet() {
+  if (typeof hasActiveSearch === "function" && hasActiveSearch()) {
+    return new Set(); // 🔓 nothing hidden
+  }
   const hidden = new Set();
   const protectedSet = new Set();
   const byId = new Map(members.map(m => [m.id, m]));
 
-  // --- protect clicked node + descendants + spouses ---
+  // 🔒 Protect: clicked node + descendants + spouses
   function protectDescendants(startId) {
     const q = [startId];
     while (q.length) {
       const id = q.shift();
-      if (protectedSet.has(id)) continue;
+      if (!id || protectedSet.has(id)) continue;
       protectedSet.add(id);
 
       const m = byId.get(id);
@@ -414,7 +421,7 @@ function buildHiddenAncestorSet() {
     }
   }
 
-  // --- hide subtree helper ---
+  // ❌ Hide: whole subtree (except protected)
   function hideSubtree(startId) {
     const q = [startId];
     while (q.length) {
@@ -433,53 +440,40 @@ function buildHiddenAncestorSet() {
     }
   }
 
-  // --- main ---
+  // ================= MAIN =================
   members.forEach(m => {
     if (!m.collapseUp) return;
 
-    // 1️⃣ protect main branch
+    // 1️⃣ protect self branch
     protectDescendants(m.id);
     protectedSet.add(m.id);
     if (m.spouseId) protectedSet.add(m.spouseId);
 
-    // 2️⃣ for each parent
-    (m.parents || []).forEach(pid => {
-      const parent = byId.get(pid);
-      if (!parent) return;
+    // 2️⃣ walk ancestors recursively
+    const stack = [...(m.parents || [])];
 
-      // hide the parent itself
+    while (stack.length) {
+      const pid = stack.pop();
+      const parent = byId.get(pid);
+      if (!parent) continue;
+
       if (!protectedSet.has(parent.id)) {
         hidden.add(parent.id);
       }
 
-      // 🔥 hide ALL siblings (father's brothers) + their trees
+      // hide siblings of this ancestor
       (parent.children || []).forEach(cid => {
-        if (cid === m.id) return; // skip the clicked node
-        hideSubtree(cid);
+        if (cid !== m.id) hideSubtree(cid);
       });
 
-      // 3️⃣ go upward recursively
-      let up = parent;
-      while (up) {
-        (up.parents || []).forEach(ppid => {
-          const pp = byId.get(ppid);
-          if (!pp) return;
-
-          if (!protectedSet.has(pp.id)) hidden.add(pp.id);
-
-          (pp.children || []).forEach(cid => {
-            if (cid === up.id) return;
-            hideSubtree(cid);
-          });
-
-          up = pp;
-        });
-        break;
-      }
-    });
+      // go up
+      (parent.parents || []).forEach(ppid => {
+        if (!protectedSet.has(ppid)) stack.push(ppid);
+      });
+    }
   });
 
-  // safety
+  // 🛡 safety: never hide protected
   protectedSet.forEach(id => hidden.delete(id));
 
   return hidden;
@@ -1433,7 +1427,10 @@ function deletePerson(member) {
   const id = member.id;
 
   // 1) Remove the member itself
-  members = members.filter((m) => m.id !== id);
+  const idx = members.findIndex(m => m.id === id);
+  if (idx !== -1) {
+    members.splice(idx, 1);
+  }
 
   // 2) Remove references + spouse links
   members.forEach((m) => {
@@ -1637,6 +1634,54 @@ function openProfileView(member) {
       listEl.appendChild(li);
     }
   }
+  // ================== MEDIA (IMAGES & VIDEOS) ==================
+  const mediaBox = document.getElementById("profile-media");
+  if (mediaBox) {
+    mediaBox.innerHTML = "";
+
+    // Images
+    if (Array.isArray(member.images)) {
+      member.images.forEach((url) => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.style.cursor = "zoom-in";
+        img.onclick = (e) => {
+          e.stopPropagation();      // 🔥 ЭНЭ ЧУХАЛ
+          openImageLightbox(url);
+        };
+        img.style.width = "140px";
+        img.style.margin = "6px";
+        img.style.borderRadius = "12px";
+        img.style.objectFit = "cover";
+        mediaBox.appendChild(img);
+      });
+    }
+
+    // Videos
+    // Videos
+    if (Array.isArray(member.videos)) {
+      member.videos.forEach((url) => {
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;      // browser өөрөө удирдана
+        video.preload = "metadata";
+        video.style.width = "220px";
+        video.style.margin = "6px";
+        video.style.borderRadius = "12px";
+        video.style.background = "#000";
+
+        mediaBox.appendChild(video);
+      });
+    }
+
+    // Fallback
+    if (
+      (!member.images || member.images.length === 0) &&
+      (!member.videos || member.videos.length === 0)
+    ) {
+      mediaBox.textContent = "—";
+    }
+  }
 
   // show
   backdrop.hidden = false;
@@ -1661,6 +1706,10 @@ document
   ?.addEventListener("click", closeProfileView);
 let currentProfileMember = null;
 
+
+//  ЭНД 
+let editImages = [];
+let editVideos = [];
 function closeProfileEdit() {
   document.getElementById("profile-edit-backdrop").hidden = true;
   document.getElementById("profile-edit").hidden = true;
@@ -1676,8 +1725,9 @@ document
 
 document.getElementById("profile-edit-save")?.addEventListener("click", () => {
   if (!currentProfileMember) return;
-  if (preview && !preview.hidden) {
-    currentProfileMember.photoUrl = preview.src;
+  const previewEl = document.getElementById("photo-preview");
+  if (previewEl && !previewEl.hidden && previewEl.src) {
+    currentProfileMember.photoUrl = previewEl.src;
   }
   currentProfileMember.familyName = document
     .getElementById("edit-familyName")
@@ -1722,7 +1772,9 @@ document.getElementById("profile-edit-save")?.addEventListener("click", () => {
   }
 
   // 🔼 🔼 🔼 ЭНД ДУУСНА 🔼 🔼 🔼
-
+  // ===== save media =====
+  currentProfileMember.images = [...editImages];
+  currentProfileMember.videos = [...editVideos];
   saveTreeToDB();
   openProfileView(currentProfileMember);
   closeProfileEdit();
@@ -1853,6 +1905,11 @@ function syncBirthPlaceUI(member) {
 function openProfileEdit(member) {
   currentProfileMember = member;
 
+  // ===== preload media for edit =====
+  editImages = [...(member.images || [])];
+  editVideos = [...(member.videos || [])];
+
+  renderEditMedia();
   document.getElementById("edit-familyName").value = member.familyName || "";
   document.getElementById("edit-fatherName").value = member.fatherName || "";
   document.getElementById("edit-birthDate").value = member.birthDate || "";
@@ -1866,26 +1923,111 @@ function openProfileEdit(member) {
   // ⭐ ТӨРСӨН ГАЗАР UI sync
   syncBirthPlaceUI(member);
 
-  document.getElementById("profile-edit-backdrop").hidden = false;
+  const el = document.getElementById("profile-edit-backdrop");
+  if (el) el.hidden = true;
   document.getElementById("profile-edit").hidden = false;
   // preload profile photo
   // preload profile photo (SAFE)
-  if (preview && placeholder && urlInput) {
+  // preload profile photo (SAFE & LOCAL)
+  const previewEl = document.getElementById("photo-preview");
+  const placeholderEl = document.getElementById("photo-placeholder");
+  const urlInputEl = document.getElementById("edit-photo-url");
+
+  if (previewEl && placeholderEl && urlInputEl) {
     if (member.photoUrl) {
-      preview.src = member.photoUrl;
-      preview.hidden = false;
-      placeholder.hidden = true;
-      urlInput.value = member.photoUrl.startsWith("http")
+      previewEl.src = member.photoUrl;
+      previewEl.hidden = false;
+      placeholderEl.hidden = true;
+      urlInputEl.value = member.photoUrl.startsWith("http")
         ? member.photoUrl
         : "";
     } else {
-      preview.hidden = true;
-      placeholder.hidden = false;
-      urlInput.value = "";
+      previewEl.hidden = true;
+      placeholderEl.hidden = false;
+      urlInputEl.value = "";
     }
   }
 }
+function renderEditMedia() {
+  const imgBox = document.getElementById("edit-images");
+  const vidBox = document.getElementById("edit-videos");
 
+  if (!imgBox || !vidBox) return;
+
+  imgBox.innerHTML = "";
+  vidBox.innerHTML = "";
+
+  editImages.forEach((url, i) => {
+    const img = document.createElement("img");
+    img.src = url;
+    img.style.width = "100px";
+    img.style.margin = "4px";
+    img.style.borderRadius = "8px";
+    img.style.objectFit = "cover";
+    img.title = "Дарж устгана";
+    img.onclick = () => {
+      editImages.splice(i, 1);
+      renderEditMedia();
+    };
+    imgBox.appendChild(img);
+  });
+
+  editVideos.forEach((url, i) => {
+    const v = document.createElement("video");
+    v.src = url;
+    v.controls = true;
+    v.style.width = "140px";
+    v.style.margin = "4px";
+    v.title = "Дарж устгана";
+    v.onclick = () => {
+      editVideos.splice(i, 1);
+      renderEditMedia();
+    };
+    vidBox.appendChild(v);
+  });
+}
+document.getElementById("add-image")?.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const url = await uploadFileToR2(file); // ⭐ R2 upload
+      editImages.push(url);                   // ⭐ URL хадгална
+      renderEditMedia();
+    } catch (err) {
+      alert("Зураг upload амжилтгүй");
+      console.error(err);
+    }
+  };
+
+  input.click();
+});
+document.getElementById("add-video")?.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "video/*";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    try {
+      const url = await uploadFileToR2(file); // ⭐ R2 upload
+      editVideos.push(url);                   // ⭐ URL хадгална
+      renderEditMedia();
+    } catch (err) {
+      alert("Видео upload амжилтгүй");
+      console.error(err);
+    }
+  };
+
+  input.click();
+});
 // ================== PROFILE PHOTO LOGIC ==================
 const drop = document.getElementById("photo-drop");
 const fileInput = document.getElementById("photo-file");
@@ -1934,15 +2076,19 @@ urlInput?.addEventListener("input", () => {
   }
 });
 
-function loadImageFile(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    preview.src = reader.result;
+async function loadImageFile(file) {
+  try {
+    const url = await uploadFileToR2(file);
+
+    preview.src = url;
     preview.hidden = false;
     placeholder.hidden = true;
-    urlInput.value = ""; // URL цэвэрлэнэ
-  };
-  reader.readAsDataURL(file);
+
+    urlInput.value = url; // ⭐ URL хадгална
+  } catch (err) {
+    alert("Зураг upload амжилтгүй");
+    console.error(err);
+  }
 }
 
 async function loadTreeFromDB() {
@@ -1961,7 +2107,8 @@ async function loadTreeFromDB() {
 
     if (!res.ok) {
       console.error("LOAD FAILED:", res.status, await res.text());
-      members = [];
+      members.length = 0;     // ✅ KEEP REFERENCE
+
       createDefaultRoot();
       repairTreeData();
       nextId = members.reduce((mx, m) => Math.max(mx, m.id), 0) + 1;
@@ -1972,13 +2119,16 @@ async function loadTreeFromDB() {
     const data = await res.json();
 
     const rawMembers = Array.isArray(data?.members) ? data.members : [];
-    members = rawMembers.map((raw) => {
+    // 🔥 KEEP SAME ARRAY REFERENCE
+    members.length = 0;
+
+    rawMembers.forEach((raw) => {
       const m = new FamilyMember(raw);
       m.parents = Array.isArray(raw.parents) ? raw.parents.slice() : [];
       m.children = Array.isArray(raw.children) ? raw.children.slice() : [];
       m.spouseId = raw.spouseId ?? null;
       m.collapseUp = !!raw.collapseUp;
-      return m;
+      members.push(m);
     });
 
     if (!members.length) createDefaultRoot();
@@ -1988,7 +2138,8 @@ async function loadTreeFromDB() {
     scheduleRender();
   } catch (err) {
     console.error("DB-ээс tree ачааллахад алдаа:", err);
-    members = [];
+    members.length = 0;     // ✅ KEEP REFERENCE
+
     createDefaultRoot();
     repairTreeData();
     nextId = members.reduce((mx, m) => Math.max(mx, m.id), 0) + 1;
@@ -2126,8 +2277,35 @@ document.addEventListener("click", () => {
   closeAllMenus();
 });
 
-function closeAllMenus() {
-  document.querySelectorAll(".add-menu").forEach(menu => {
-    menu.classList.add("hidden");
+const lightbox = document.getElementById("img-lightbox");
+const lightboxImg = document.getElementById("img-lightbox-img");
+lightboxImg?.addEventListener("click", (e) => {
+  e.stopPropagation(); // image дээр дарахад хаагдахгүй
+});
+
+lightbox?.addEventListener("click", () => {
+  lightbox.style.display = "none";
+  lightboxImg.src = "";
+});
+
+function openImageLightbox(src) {
+  if (!lightbox || !lightboxImg) return;
+  lightboxImg.src = src;
+  lightbox.style.display = "flex";
+}
+async function uploadFileToR2(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: fd,
   });
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
+  const data = await res.json();
+  return data.url; // ⭐ PUBLIC URL
 }
