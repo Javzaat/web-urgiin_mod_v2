@@ -318,6 +318,17 @@
         </div>
       </div>
     </div>
+    <!-- DELETE CONFIRM -->
+    <div id="delete-backdrop" class="logout-backdrop" hidden></div>
+    <div id="delete-modal" class="delete-modal" hidden>
+      <div class="logout-box">
+        <p id="delete-text">Энэ хүнийг устгах уу?</p>
+        <div class="logout-actions">
+          <button id="delete-cancel" class="logout-btn cancel">Буцах</button>
+          <button id="delete-confirm" class="logout-btn confirm">Устгах</button>
+        </div>
+      </div>
+    </div>
 
     <!-- TOAST -->
     <div id="toast-backdrop" class="toast-backdrop" hidden></div>
@@ -337,6 +348,7 @@
       <button id="image-close">✕</button>
       <img id="image-viewer-img" />
     </div>
+
     <!-- ============== SCRIPTS ============== -->
     <script src="auth.js" type="module"></script>
     <script src="header.js"></script>

@@ -6,6 +6,7 @@ const V_GAP = 60;
 /* ✅ MEMBERS-ийг ЭНД зарлана (хамгийн дээр) */
 let members = [];
 let nextId = 1;
+let pendingDeleteMember = null;
 
 /* ✅ глобалд харагдуулна */
 window.members = members;
@@ -1016,7 +1017,7 @@ function createFamilyCard(member) {
 
   btnDelete.onclick = (e) => {
     e.stopPropagation();
-    deletePerson(member);
+    openDeleteConfirm(member); // ⭐ modal нээнэ
     closeAllMenus();
   };
 
@@ -1032,6 +1033,22 @@ function createFamilyCard(member) {
   return card;
 }
 
+function openDeleteConfirm(member) {
+  pendingDeleteMember = member;
+
+  const backdrop = document.getElementById("delete-backdrop");
+  const modal = document.getElementById("delete-modal");
+
+  backdrop.hidden = false;
+  modal.hidden = false;
+
+  backdrop.style.display = "block";
+  modal.style.display = "flex";
+
+  // 🔥 STOP EVENT BUBBLE
+  modal.onclick = e => e.stopPropagation();
+  backdrop.onclick = e => e.stopPropagation();
+}
 // ================== MENU HELPERS ==================
 function toggleMenu(menu, card) {
   closeAllMenus();
@@ -1422,7 +1439,7 @@ function deletePerson(member) {
     alert("Үндсэн 'Би' node-ийг устгах боломжгүй.");
     return;
   }
-  if (!confirm("Энэ хүнийг устгах уу?")) return;
+  
 
   const id = member.id;
 
@@ -1462,6 +1479,26 @@ function deletePerson(member) {
 
   saveTreeToDB();
   scheduleRender();
+}
+function openDeleteConfirm(member) {
+  pendingDeleteMember = member;
+
+  const backdrop = document.getElementById("delete-backdrop");
+  const modal = document.getElementById("delete-modal");
+
+  backdrop.hidden = false;
+  modal.hidden = false;
+
+  // 🔥 FORCE SHOW (CSS-ийг override хийнэ)
+  backdrop.style.display = "block";
+  modal.style.display = "flex";
+}
+
+function closeDeleteConfirm() {
+  pendingDeleteMember = null;
+
+  document.getElementById("delete-backdrop").hidden = true;
+  document.getElementById("delete-modal").hidden = true;
 }
 
 // ================== THEME BUTTON ==================
@@ -2299,9 +2336,11 @@ document.getElementById("search-education")?.addEventListener("change", e => {
   renderSearchList();
 });
 document.addEventListener("click", () => {
-  closeAllMenus();
+  const deleteModal = document.getElementById("delete-modal");
+  if (!deleteModal || deleteModal.hidden) {
+    closeAllMenus();
+  }
 });
-
 
 async function uploadFileToR2(file) {
   const fd = new FormData();
@@ -2363,3 +2402,19 @@ function closeImageFullscreen() {
   if (profileView) profileView.style.display = "";
   if (profileBackdrop) profileBackdrop.style.display = "";
 }
+// ================== DELETE CONFIRM LOGIC ==================
+document.getElementById("delete-cancel")?.addEventListener("click", () => {
+  closeDeleteConfirm();
+});
+
+document.getElementById("delete-backdrop")?.addEventListener("click", () => {
+  closeDeleteConfirm();
+});
+
+document.getElementById("delete-confirm")?.addEventListener("click", () => {
+  if (!pendingDeleteMember) return;
+
+  deletePerson(pendingDeleteMember);
+  pendingDeleteMember = null;
+  closeDeleteConfirm();
+});
